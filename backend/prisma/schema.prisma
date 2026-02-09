@@ -1,0 +1,256 @@
+// ─── Prisma Schema for ScholarAid ───
+// This schema works alongside Supabase Auth.
+// Supabase manages auth.users — our "profiles" table extends it.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─────────────────────────────────────────────
+// USER & PROFILE
+// ─────────────────────────────────────────────
+
+/// Extends Supabase auth.users. Created after signup.
+model Profile {
+  id        String     @id @default(uuid()) @db.Uuid
+  authId    String     @unique @map("auth_id") @db.Uuid
+  email     String     @unique
+  firstName String     @map("first_name")
+  lastName  String     @map("last_name")
+  avatarUrl String?    @map("avatar_url")
+  role      UserRole   @default(STUDENT)
+  status    UserStatus @default(ACTIVE)
+
+  // Onboarding data
+  nationality         String?
+  residingCountry     String?        @map("residing_country")
+  dateOfBirth         DateTime?      @map("date_of_birth") @db.Date
+  currentInstitution  String?        @map("current_institution")
+  educationLevel      EducationLevel? @map("education_level")
+  interests           String[]
+  onboardingCompleted Boolean        @default(false) @map("onboarding_completed")
+
+  // Essays & writing
+  personalStatement String? @map("personal_statement") @db.Text
+  studyPlan         String? @map("study_plan") @db.Text
+
+  // Profile details
+  achievements  String[]
+  highlights    String[]
+  organizations String[]
+
+  // Relations
+  applications  Application[]
+  documents     Document[]
+  notifications Notification[]
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("profiles")
+}
+
+enum UserRole {
+  STUDENT
+  ADMIN
+  SUPER_ADMIN
+
+  @@map("user_role")
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+
+  @@map("user_status")
+}
+
+enum EducationLevel {
+  HIGH_SCHOOL
+  BACHELORS
+  MASTERS
+  PHD
+
+  @@map("education_level")
+}
+
+// ─────────────────────────────────────────────
+// SCHOLARSHIPS
+// ─────────────────────────────────────────────
+
+model Scholarship {
+  id          String @id @default(uuid()) @db.Uuid
+  title       String
+  provider    String
+  country     String
+  description String @db.Text
+  imageUrl    String? @map("image_url")
+
+  status       ScholarshipStatus @default(UPCOMING)
+  level        String
+  duration     String?
+  deadline     DateTime?
+  value        String
+
+  fieldOfStudy String          @map("field_of_study")
+  type         ScholarshipType @default(GOVERNMENT)
+
+  // Rich content stored as JSON arrays
+  eligibility  Json?
+  benefits     Json?
+  requirements Json?
+  timeline     Json?
+
+  // Metadata
+  createdById String?  @map("created_by_id") @db.Uuid
+  featured    Boolean  @default(false)
+
+  // Relations
+  applications Application[]
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([status])
+  @@index([country])
+  @@index([deadline])
+  @@map("scholarships")
+}
+
+enum ScholarshipStatus {
+  OPEN
+  CLOSED
+  UPCOMING
+  DRAFT
+
+  @@map("scholarship_status")
+}
+
+enum ScholarshipType {
+  GOVERNMENT
+  UNIVERSITY
+  PRIVATE
+  NGO
+
+  @@map("scholarship_type")
+}
+
+// ─────────────────────────────────────────────
+// APPLICATIONS
+// ─────────────────────────────────────────────
+
+model Application {
+  id            String            @id @default(uuid()) @db.Uuid
+  userId        String            @map("user_id") @db.Uuid
+  scholarshipId String            @map("scholarship_id") @db.Uuid
+  status        ApplicationStatus @default(DRAFT)
+
+  essays      Json?
+  score       Int?
+  adminNotes  String?   @map("admin_notes") @db.Text
+  submittedAt DateTime? @map("submitted_at")
+
+  // Relations
+  user        Profile     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  scholarship Scholarship @relation(fields: [scholarshipId], references: [id], onDelete: Cascade)
+  documents   Document[]
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([userId, scholarshipId])
+  @@index([status])
+  @@map("applications")
+}
+
+enum ApplicationStatus {
+  DRAFT
+  PENDING_DOCUMENTS
+  UNDER_REVIEW
+  APPROVED
+  REJECTED
+  WITHDRAWN
+
+  @@map("application_status")
+}
+
+// ─────────────────────────────────────────────
+// DOCUMENTS
+// ─────────────────────────────────────────────
+
+model Document {
+  id            String       @id @default(uuid()) @db.Uuid
+  userId        String       @map("user_id") @db.Uuid
+  applicationId String?      @map("application_id") @db.Uuid
+  name          String
+  type          DocumentType
+  fileUrl       String       @map("file_url")
+  fileSize      Int?         @map("file_size")
+
+  // Relations
+  user        Profile      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  application Application? @relation(fields: [applicationId], references: [id], onDelete: SetNull)
+
+  uploadedAt DateTime @default(now()) @map("uploaded_at")
+
+  @@index([userId])
+  @@map("documents")
+}
+
+enum DocumentType {
+  TRANSCRIPT
+  RECOMMENDATION
+  ESSAY
+  CERTIFICATE
+  ID_DOCUMENT
+  OTHER
+
+  @@map("document_type")
+}
+
+// ─────────────────────────────────────────────
+// NOTIFICATIONS
+// ─────────────────────────────────────────────
+
+model Notification {
+  id       String               @id @default(uuid()) @db.Uuid
+  userId   String               @map("user_id") @db.Uuid
+  type     NotificationType
+  category NotificationCategory
+  title    String
+  message  String               @db.Text
+  isRead   Boolean              @default(false) @map("is_read")
+  metadata Json?
+
+  // Relations
+  user Profile @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([userId, isRead])
+  @@index([createdAt])
+  @@map("notifications")
+}
+
+enum NotificationType {
+  SUCCESS
+  INFO
+  WARNING
+  ALERT
+
+  @@map("notification_type")
+}
+
+enum NotificationCategory {
+  SCHOLARSHIP
+  APPLICATION
+  REMINDER
+  ACHIEVEMENT
+  SYSTEM
+
+  @@map("notification_category")
+}
