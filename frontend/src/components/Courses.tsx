@@ -9,6 +9,7 @@ import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
 import { Star, Clock, Users } from "lucide-react";
 import { ImageWithFallback } from "./figma/ImageWithFallback";
+import { useNavigate } from "react-router";
 
 const courses = [
   {
@@ -62,11 +63,8 @@ const getBadgeVariant = (level: string) => {
   }
 };
 
-interface CoursesProps {
-  onNavigate?: (page: string) => void;
-}
-
-export function Courses({ onNavigate }: CoursesProps) {
+export function Courses() {
+  const navigate = useNavigate();
   return (
     <section id="courses" className="py-20 lg:py-32">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
@@ -117,10 +115,10 @@ export function Courses({ onNavigate }: CoursesProps) {
                   </div>
                 </div>
 
-                <Button 
-                  className="w-full bg-black text-white hover:bg-gray-800" 
+                <Button
+                  className="w-full bg-black text-white hover:bg-gray-800"
                   variant="outline"
-                  onClick={() => onNavigate?.('scholarship-details')}
+                  onClick={() => navigate('/scholarships')}
                 >
                   Apply Now
                 </Button>
@@ -130,10 +128,10 @@ export function Courses({ onNavigate }: CoursesProps) {
         </div>
 
         <div className="text-center mt-12">
-          <Button 
-            variant="outline" 
+          <Button
+            variant="outline"
             size="lg"
-            onClick={() => onNavigate?.('all-scholarships')}
+            onClick={() => navigate('/scholarships')}
           >
             View All Scholarships
           </Button>

@@ -1,11 +1,9 @@
 import { ArrowLeft } from "lucide-react";
 import { Button } from "./ui/button";
+import { useNavigate } from "react-router";
 
-interface PrivacyPolicyProps {
-  onNavigate?: (page: string) => void;
-}
-
-export function PrivacyPolicy({ onNavigate }: PrivacyPolicyProps) {
+export function PrivacyPolicy() {
+  const navigate = useNavigate();
   return (
     <div className="min-h-screen bg-background py-12">
       <div className="container mx-auto max-w-4xl px-4">
@@ -13,7 +11,7 @@ export function PrivacyPolicy({ onNavigate }: PrivacyPolicyProps) {
         <div className="mb-8">
           <Button
             variant="ghost"
-            onClick={() => onNavigate?.('home')}
+            onClick={() => navigate('/')}
             className="mb-4 p-0 hover:bg-transparent"
           >
             <ArrowLeft className="mr-2 h-4 w-4" />
@@ -75,7 +73,7 @@ export function PrivacyPolicy({ onNavigate }: PrivacyPolicyProps) {
           <section>
             <h2>4. Information Sharing and Disclosure</h2>
             <p>We may share your information in the following circumstances:</p>
-            
+
             <h3>4.1 With Your Consent</h3>
             <p>We may share your information when you explicitly consent to such sharing.</p>
 
@@ -211,7 +209,7 @@ export function PrivacyPolicy({ onNavigate }: PrivacyPolicyProps) {
           <div className="flex flex-col sm:flex-row gap-4 justify-between items-center">
             <Button
               variant="outline"
-              onClick={() => onNavigate?.('home')}
+              onClick={() => navigate('/')}
             >
               <ArrowLeft className="mr-2 h-4 w-4" />
               Back to Home

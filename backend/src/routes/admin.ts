@@ -92,7 +92,7 @@ router.get(
           totalScholarships,
           totalApplications,
           applicationsByStatus: Object.fromEntries(
-            applicationsByStatus.map((g) => [g.status, g._count]),
+            applicationsByStatus.map((g: { status: string; _count: number }) => [g.status, g._count]),
           ),
         },
         recentApplications,

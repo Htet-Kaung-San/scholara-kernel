@@ -62,7 +62,7 @@ export function Features() {
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-16">
           <h2 className="text-3xl lg:text-5xl font-bold text-foreground mb-4">
-            Why Choose Scholaright?
+            Why Choose ScholarAid?
           </h2>
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
             We provide everything you need to succeed in your

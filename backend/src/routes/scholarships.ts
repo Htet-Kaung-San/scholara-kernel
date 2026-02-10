@@ -98,6 +98,22 @@ router.get(
   }),
 );
 
+// ─── GET /api/scholarships/featured ─────────
+// NOTE: Static routes must come before parameterized routes (/:id)
+
+router.get(
+  "/featured",
+  asyncHandler(async (_req, res) => {
+    const scholarships = await prisma.scholarship.findMany({
+      where: { featured: true, status: "OPEN" },
+      orderBy: { deadline: "asc" },
+      take: 6,
+    });
+
+    res.json({ success: true, data: scholarships });
+  }),
+);
+
 // ─── GET /api/scholarships/:id ──────────────
 
 router.get(
@@ -134,21 +150,6 @@ router.get(
     }
 
     res.json({ success: true, data: scholarship });
-  }),
-);
-
-// ─── GET /api/scholarships/featured ─────────
-
-router.get(
-  "/featured",
-  asyncHandler(async (_req, res) => {
-    const scholarships = await prisma.scholarship.findMany({
-      where: { featured: true, status: "OPEN" },
-      orderBy: { deadline: "asc" },
-      take: 6,
-    });
-
-    res.json({ success: true, data: scholarships });
   }),
 );
 

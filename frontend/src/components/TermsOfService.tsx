@@ -1,11 +1,9 @@
 import { ArrowLeft } from "lucide-react";
 import { Button } from "./ui/button";
+import { useNavigate } from "react-router";
 
-interface TermsOfServiceProps {
-  onNavigate?: (page: string) => void;
-}
-
-export function TermsOfService({ onNavigate }: TermsOfServiceProps) {
+export function TermsOfService() {
+  const navigate = useNavigate();
   return (
     <div className="min-h-screen bg-background py-12">
       <div className="container mx-auto max-w-4xl px-4">
@@ -13,7 +11,7 @@ export function TermsOfService({ onNavigate }: TermsOfServiceProps) {
         <div className="mb-8">
           <Button
             variant="ghost"
-            onClick={() => onNavigate?.('signup')}
+            onClick={() => navigate(-1)}
             className="mb-4 p-0 hover:bg-transparent"
           >
             <ArrowLeft className="mr-2 h-4 w-4" />
@@ -155,7 +153,7 @@ export function TermsOfService({ onNavigate }: TermsOfServiceProps) {
           <div className="flex flex-col sm:flex-row gap-4 justify-between items-center">
             <Button
               variant="outline"
-              onClick={() => onNavigate?.('signup')}
+              onClick={() => navigate(-1)}
             >
               <ArrowLeft className="mr-2 h-4 w-4" />
               Back to Sign Up

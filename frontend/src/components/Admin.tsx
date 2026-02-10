@@ -10,15 +10,15 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from ".
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "./ui/dialog";
 import { Label } from "./ui/label";
 import { Switch } from "./ui/switch";
-import { 
-  Users, 
-  GraduationCap, 
-  FileText, 
-  Settings, 
-  BarChart3, 
-  Plus, 
-  Edit, 
-  Trash2, 
+import {
+  Users,
+  GraduationCap,
+  FileText,
+  Settings,
+  BarChart3,
+  Plus,
+  Edit,
+  Trash2,
   Eye,
   CheckCircle,
   XCircle,
@@ -36,10 +36,7 @@ import {
   DollarSign
 } from "lucide-react";
 import { ImageWithFallback } from "./figma/ImageWithFallback";
-
-interface AdminProps {
-  onNavigate?: (page: string) => void;
-}
+import { useNavigate } from "react-router";
 
 const mockUsers = [
   { id: 1, name: "John Smith", email: "john@email.com", role: "Student", status: "Active", joinDate: "2024-01-15", applications: 3 },
@@ -81,7 +78,8 @@ const getStatusBadge = (status: string) => {
   }
 };
 
-export function Admin({ onNavigate }: AdminProps) {
+export function Admin() {
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("dashboard");
   const [isCreateScholarshipOpen, setIsCreateScholarshipOpen] = useState(false);
   const [isCreateUserOpen, setIsCreateUserOpen] = useState(false);
@@ -93,9 +91,9 @@ export function Admin({ onNavigate }: AdminProps) {
         <div className="max-w-7xl mx-auto px-4 py-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <Button 
-                variant="ghost" 
-                onClick={() => onNavigate?.('home')}
+              <Button
+                variant="ghost"
+                onClick={() => navigate('/')}
                 className="mr-2"
               >
                 <ArrowLeft className="h-4 w-4 mr-2" />
@@ -585,8 +583,8 @@ export function Admin({ onNavigate }: AdminProps) {
                         <TableCell>
                           <div className="flex items-center gap-2">
                             <div className="w-12 h-2 bg-gray-200 rounded-full">
-                              <div 
-                                className="h-2 bg-blue-600 rounded-full" 
+                              <div
+                                className="h-2 bg-blue-600 rounded-full"
                                 style={{ width: `${app.score}%` }}
                               ></div>
                             </div>
