@@ -89,7 +89,7 @@ router.patch(
 
 // ─── POST /api/profiles/onboarding ──────────
 
-router.post(
+router.patch(
   "/onboarding",
   authenticate,
   validate(onboardingSchema),

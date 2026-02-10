@@ -1,7 +1,7 @@
 import { Button } from "./ui/button";
 import { Card, CardContent } from "./ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
-import { Menu, X } from "lucide-react";
+import { Menu, X, Bell, User, LogOut, Shield } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useNavigate, useLocation, Link } from "react-router";
 import { useAuth } from "@/contexts/AuthContext";
@@ -96,7 +96,7 @@ export function Header() {
                   onClick={() => handleNavigation("/notifications")}
                   className="flex items-center gap-2"
                 >
-                  🔔 Notifications
+                  <Bell className="h-4 w-4" />
                 </Button>
 
                 {/* Profile Avatar + Dropdown */}
@@ -123,13 +123,13 @@ export function Header() {
                             onClick={() => handleNavigation("/profile")}
                             className="w-full flex items-center gap-3 px-4 py-2 text-sm hover:bg-muted/50 transition-colors"
                           >
-                            👤 Profile
+                            <User className="h-4 w-4" /> Profile
                           </button>
                           <button
                             onClick={() => handleNavigation("/notifications")}
                             className="w-full flex items-center gap-3 px-4 py-2 text-sm hover:bg-muted/50 transition-colors"
                           >
-                            🔔 Notifications
+                            <Bell className="h-4 w-4" /> Notifications
                           </button>
 
                           {(user.role === "ADMIN" || user.role === "SUPER_ADMIN") && (
@@ -137,7 +137,7 @@ export function Header() {
                               onClick={() => handleNavigation("/admin")}
                               className="w-full flex items-center gap-3 px-4 py-2 text-sm hover:bg-muted/50 transition-colors"
                             >
-                              🛡️ Admin Dashboard
+                              <Shield className="h-4 w-4" /> Admin Dashboard
                             </button>
                           )}
 
@@ -147,7 +147,7 @@ export function Header() {
                             onClick={handleSignOut}
                             className="w-full flex items-center gap-3 px-4 py-2 text-sm hover:bg-muted/50 transition-colors text-red-600"
                           >
-                            🚪 Sign out
+                            <LogOut className="h-4 w-4" /> Sign out
                           </button>
                         </div>
                       </CardContent>

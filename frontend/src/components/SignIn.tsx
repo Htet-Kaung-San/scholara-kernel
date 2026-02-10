@@ -32,7 +32,9 @@ export function SignIn() {
     try {
       const { needsOnboarding } = await signIn(formData.email, formData.password);
       toast.success("Signed in successfully!");
-      navigate(needsOnboarding ? "/onboarding" : "/");
+
+      const from = (location.state as any)?.from?.pathname || "/";
+      navigate(needsOnboarding ? "/onboarding" : from);
     } catch (err: any) {
       setError(err.message || "Invalid email or password");
       toast.error(err.message || "Sign in failed");

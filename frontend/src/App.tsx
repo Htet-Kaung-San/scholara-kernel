@@ -60,9 +60,11 @@ function AppLayout() {
     !NO_FOOTER_ROUTES.includes(pathname) &&
     !pathname.startsWith("/scholarships/");
 
+  const isAdminRoute = pathname.startsWith("/admin");
+
   return (
     <div className="min-h-screen bg-background">
-      {!isAuthRoute && <Header />}
+      {!isAuthRoute && !isAdminRoute && <Header />}
 
       <Routes>
         {/* Public routes */}

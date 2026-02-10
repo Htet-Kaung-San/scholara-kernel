@@ -56,11 +56,18 @@ export function Onboarding() {
   const handleFinish = async () => {
     setIsSubmitting(true);
     try {
+      const educationMap: Record<string, string> = {
+        "High School": "HIGH_SCHOOL",
+        "Bachelor's Degree": "BACHELORS",
+        "Master's Degree": "MASTERS",
+        "PhD": "PHD"
+      };
+
       await api.patch("/profiles/onboarding", {
         nationality: formData.nationality,
-        country: formData.residingCountry,
-        educationLevel: formData.educationLevel,
-        institution: formData.currentInstitution,
+        residingCountry: formData.residingCountry,
+        educationLevel: educationMap[formData.educationLevel] || formData.educationLevel,
+        currentInstitution: formData.currentInstitution,
         interests: formData.interests,
       });
       await refreshUser();

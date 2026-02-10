@@ -33,10 +33,15 @@ import {
   Mail,
   Bell,
   Shield,
-  DollarSign
+  DollarSign,
+  Globe, // Added
+  LogOut, // Added
 } from "lucide-react";
 import { ImageWithFallback } from "./figma/ImageWithFallback";
 import { useNavigate } from "react-router";
+import { api } from "@/lib/api";
+import { useEffect } from "react";
+import { useAuth } from "@/contexts/AuthContext"; // Added
 
 const mockUsers = [
   { id: 1, name: "John Smith", email: "john@email.com", role: "Student", status: "Active", joinDate: "2024-01-15", applications: 3 },
@@ -80,9 +85,108 @@ const getStatusBadge = (status: string) => {
 
 export function Admin() {
   const navigate = useNavigate();
+  const { signOut } = useAuth(); // Added
   const [activeTab, setActiveTab] = useState("dashboard");
   const [isCreateScholarshipOpen, setIsCreateScholarshipOpen] = useState(false);
   const [isCreateUserOpen, setIsCreateUserOpen] = useState(false);
+  const [stats, setStats] = useState<any>(null);
+  const [recentApplications, setRecentApplications] = useState<any[]>([]);
+  const [users, setUsers] = useState<any[]>([]);
+  const [scholarships, setScholarships] = useState<any[]>([]);
+  const [applications, setApplications] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingUsers, setIsLoadingUsers] = useState(false);
+  const [isLoadingScholarships, setIsLoadingScholarships] = useState(false);
+  const [isLoadingApplications, setIsLoadingApplications] = useState(false);
+  const [error, setError] = useState("");
+
+  const handleSignOut = async () => {
+    await signOut();
+    navigate("/");
+  };
+
+
+
+
+
+  // Fetch Users
+  useEffect(() => {
+    if (activeTab === "users") {
+      setIsLoadingUsers(true);
+      api.get<any>("/admin/users")
+        .then(res => {
+          if (res.data) setUsers(res.data);
+        })
+        .catch(err => console.error(err))
+        .finally(() => setIsLoadingUsers(false));
+    }
+  }, [activeTab]);
+
+  // Fetch Scholarships
+  useEffect(() => {
+    if (activeTab === "scholarships") {
+      setIsLoadingScholarships(true);
+      // Use public endpoint which handles admin role for drafts
+      api.get<any>("/scholarships?limit=100")
+        .then(res => {
+          if (res.data) setScholarships(res.data);
+        })
+        .catch(err => console.error(err))
+        .finally(() => setIsLoadingScholarships(false));
+    }
+  }, [activeTab]);
+
+  // Fetch Applications
+  useEffect(() => {
+    if (activeTab === "applications") {
+      setIsLoadingApplications(true);
+      api.get<any>("/admin/applications")
+        .then(res => {
+          if (res.data) setApplications(res.data);
+        })
+        .catch(err => console.error(err))
+        .finally(() => setIsLoadingApplications(false));
+    }
+  }, [activeTab]);
+
+  const handleDeleteScholarship = async (id: string) => {
+    if (!confirm("Are you sure you want to delete this scholarship?")) return;
+    try {
+      await api.delete(`/admin/scholarships/${id}`);
+      setScholarships(prev => prev.filter(s => s.id !== id));
+    } catch (err) {
+      alert("Failed to delete scholarship");
+    }
+  };
+
+  const handleReviewApplication = async (id: string, status: "APPROVED" | "REJECTED") => {
+    try {
+      await api.patch(`/admin/applications/${id}/review`, { status });
+      setApplications(prev => prev.map(a => a.id === id ? { ...a, status } : a));
+    } catch (err) {
+      alert("Failed to update application");
+    }
+  };
+
+  useEffect(() => {
+    // Fetch stats on mount
+    const fetchStats = async () => {
+      try {
+        const res = await api.get<any>("/admin/dashboard");
+        if (res.data) {
+          setStats(res.data.stats);
+          setRecentApplications(res.data.recentApplications || []);
+        }
+      } catch (err) {
+        console.error("Failed to fetch admin stats:", err);
+        setError("Failed to load dashboard data");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchStats();
+  }, []);
 
   return (
     <div className="min-h-screen bg-background">
@@ -91,16 +195,8 @@ export function Admin() {
         <div className="max-w-7xl mx-auto px-4 py-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <Button
-                variant="ghost"
-                onClick={() => navigate('/')}
-                className="mr-2"
-              >
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                Back to Home
-              </Button>
               <div>
-                <h1 className="flex items-center gap-2">
+                <h1 className="flex items-center gap-2 text-2xl font-bold">
                   <Shield className="h-6 w-6" />
                   Admin Dashboard
                 </h1>
@@ -109,9 +205,19 @@ export function Admin() {
                 </p>
               </div>
             </div>
-            <Badge variant="outline" className="bg-blue-50 text-blue-700">
-              Super Admin
-            </Badge>
+            <div className="flex items-center gap-4">
+              <Badge variant="outline" className="bg-blue-50 text-blue-700">
+                Super Admin
+              </Badge>
+              <Button variant="default" size="sm" onClick={() => navigate('/')}>
+                <Globe className="h-4 w-4 mr-2" />
+                View Site
+              </Button>
+              <Button variant="outline" size="sm" onClick={handleSignOut}>
+                <LogOut className="h-4 w-4 mr-2" />
+                Log Out
+              </Button>
+            </div>
           </div>
         </div>
       </div>
@@ -148,127 +254,129 @@ export function Admin() {
 
           {/* Dashboard Tab */}
           <TabsContent value="dashboard" className="space-y-6">
-            {/* Stats Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Total Users</CardTitle>
-                  <Users className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">2,350</div>
-                  <p className="text-xs text-muted-foreground">
-                    <span className="text-green-600 flex items-center gap-1">
-                      <TrendingUp className="h-3 w-3" />
-                      +20.1%
-                    </span>
-                    from last month
-                  </p>
-                </CardContent>
-              </Card>
+            {isLoading ? (
+              <div className="flex justify-center p-12">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+              </div>
+            ) : error ? (
+              <div className="p-4 text-red-500 bg-red-50 rounded-md">
+                Error loading dashboard: {error}
+              </div>
+            ) : (
+              <>
+                {/* Stats Cards */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                  <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                      <CardTitle className="text-sm font-medium">Total Users</CardTitle>
+                      <Users className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-2xl font-bold">{stats?.totalUsers || 0}</div>
+                      <p className="text-xs text-muted-foreground">
+                        <span className="text-green-600 flex items-center gap-1">
+                          <TrendingUp className="h-3 w-3" />
+                          Active
+                        </span>
+                      </p>
+                    </CardContent>
+                  </Card>
 
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Active Scholarships</CardTitle>
-                  <GraduationCap className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">24</div>
-                  <p className="text-xs text-muted-foreground">
-                    <span className="text-green-600 flex items-center gap-1">
-                      <TrendingUp className="h-3 w-3" />
-                      +2 new
-                    </span>
-                    this week
-                  </p>
-                </CardContent>
-              </Card>
+                  <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                      <CardTitle className="text-sm font-medium">Scholarships</CardTitle>
+                      <GraduationCap className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-2xl font-bold">{stats?.totalScholarships || 0}</div>
+                      <p className="text-xs text-muted-foreground">
+                        Total opportunities
+                      </p>
+                    </CardContent>
+                  </Card>
 
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Pending Applications</CardTitle>
-                  <Clock className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">142</div>
-                  <p className="text-xs text-muted-foreground">
-                    <span className="text-red-600 flex items-center gap-1">
-                      <AlertTriangle className="h-3 w-3" />
-                      Needs attention
-                    </span>
-                  </p>
-                </CardContent>
-              </Card>
+                  <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                      <CardTitle className="text-sm font-medium">Applications</CardTitle>
+                      <FileText className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-2xl font-bold">{stats?.totalApplications || 0}</div>
+                      <p className="text-xs text-muted-foreground">
+                        Across all scholarships
+                      </p>
+                    </CardContent>
+                  </Card>
 
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Total Funding</CardTitle>
-                  <DollarSign className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">$2.4M</div>
-                  <p className="text-xs text-muted-foreground">
-                    <span className="text-green-600 flex items-center gap-1">
-                      <TrendingUp className="h-3 w-3" />
-                      +15.2%
-                    </span>
-                    from last year
-                  </p>
-                </CardContent>
-              </Card>
-            </div>
+                  <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                      <CardTitle className="text-sm font-medium">Pending Review</CardTitle>
+                      <Clock className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-2xl font-bold">{stats?.applicationsByStatus?.UNDER_REVIEW || 0}</div>
+                      <p className="text-xs text-muted-foreground">
+                        <span className="text-yellow-600 flex items-center gap-1">
+                          Needs attention
+                        </span>
+                      </p>
+                    </CardContent>
+                  </Card>
+                </div>
 
-            {/* Recent Activity */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Recent Applications</CardTitle>
-                  <CardDescription>Latest scholarship applications submitted</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    {mockApplications.slice(0, 4).map((app) => (
-                      <div key={app.id} className="flex items-center justify-between">
-                        <div>
-                          <p className="font-medium">{app.student}</p>
-                          <p className="text-sm text-muted-foreground">{app.scholarship}</p>
-                        </div>
-                        <Badge className={getStatusBadge(app.status)}>
-                          {app.status}
-                        </Badge>
+                {/* Recent Activity */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Recent Applications</CardTitle>
+                      <CardDescription>Latest scholarship applications submitted</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-4">
+                        {recentApplications.length === 0 ? (
+                          <p className="text-muted-foreground text-sm">No applications yet.</p>
+                        ) : (
+                          recentApplications.map((app: any) => (
+                            <div key={app.id} className="flex items-center justify-between">
+                              <div>
+                                <p className="font-medium">{app.user?.firstName} {app.user?.lastName}</p>
+                                <p className="text-sm text-muted-foreground">{app.scholarship?.title}</p>
+                              </div>
+                              <Badge className={getStatusBadge(app.status)}>
+                                {app.status}
+                              </Badge>
+                            </div>
+                          ))
+                        )}
                       </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
+                    </CardContent>
+                  </Card>
 
-              <Card>
-                <CardHeader>
-                  <CardTitle>System Status</CardTitle>
-                  <CardDescription>Platform health and performance metrics</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm">Server Status</span>
-                      <Badge className="bg-green-100 text-green-800">Online</Badge>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm">Database</span>
-                      <Badge className="bg-green-100 text-green-800">Connected</Badge>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm">Email Service</span>
-                      <Badge className="bg-green-100 text-green-800">Active</Badge>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm">Payment Gateway</span>
-                      <Badge className="bg-yellow-100 text-yellow-800">Maintenance</Badge>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>System Status</CardTitle>
+                      <CardDescription>Platform health and performance metrics</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-4">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm">Server Status</span>
+                          <Badge className="bg-green-100 text-green-800">Online</Badge>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm">Database</span>
+                          <Badge className="bg-green-100 text-green-800">Connected</Badge>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm">Email Service</span>
+                          <Badge className="bg-green-100 text-green-800">Active</Badge>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+              </>
+            )}
           </TabsContent>
 
           {/* Users Tab */}
@@ -278,85 +386,10 @@ export function Admin() {
                 <h3>User Management</h3>
                 <p className="text-muted-foreground">Manage platform users and their permissions</p>
               </div>
-              <Dialog open={isCreateUserOpen} onOpenChange={setIsCreateUserOpen}>
-                <DialogTrigger asChild>
-                  <button className="inline-flex items-center justify-center whitespace-nowrap rounded-md font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground hover:bg-primary/90 h-10 px-4 py-2">
-                    <Plus className="h-4 w-4 mr-2" />
-                    Add User
-                  </button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Create New User</DialogTitle>
-                    <DialogDescription>Add a new user to the platform</DialogDescription>
-                  </DialogHeader>
-                  <div className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <Label htmlFor="firstName">First Name</Label>
-                        <Input id="firstName" placeholder="John" />
-                      </div>
-                      <div>
-                        <Label htmlFor="lastName">Last Name</Label>
-                        <Input id="lastName" placeholder="Smith" />
-                      </div>
-                    </div>
-                    <div>
-                      <Label htmlFor="email">Email</Label>
-                      <Input id="email" type="email" placeholder="john@example.com" />
-                    </div>
-                    <div>
-                      <Label htmlFor="role">Role</Label>
-                      <Select>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select role" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="student">Student</SelectItem>
-                          <SelectItem value="admin">Admin</SelectItem>
-                          <SelectItem value="super-admin">Super Admin</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="flex justify-end gap-2">
-                      <Button variant="outline" onClick={() => setIsCreateUserOpen(false)}>
-                        Cancel
-                      </Button>
-                      <Button onClick={() => setIsCreateUserOpen(false)}>
-                        Create User
-                      </Button>
-                    </div>
-                  </div>
-                </DialogContent>
-              </Dialog>
-            </div>
-
-            {/* Search and Filters */}
-            <div className="flex items-center gap-4">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input placeholder="Search users..." className="pl-10" />
-              </div>
-              <Select>
-                <SelectTrigger className="w-40">
-                  <SelectValue placeholder="Role" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Roles</SelectItem>
-                  <SelectItem value="student">Student</SelectItem>
-                  <SelectItem value="admin">Admin</SelectItem>
-                </SelectContent>
-              </Select>
-              <Select>
-                <SelectTrigger className="w-40">
-                  <SelectValue placeholder="Status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Status</SelectItem>
-                  <SelectItem value="active">Active</SelectItem>
-                  <SelectItem value="suspended">Suspended</SelectItem>
-                </SelectContent>
-              </Select>
+              <Button onClick={() => setIsCreateUserOpen(true)}>
+                <Plus className="h-4 w-4 mr-2" />
+                Add User
+              </Button>
             </div>
 
             {/* Users Table */}
@@ -370,43 +403,43 @@ export function Admin() {
                       <TableHead>Status</TableHead>
                       <TableHead>Join Date</TableHead>
                       <TableHead>Applications</TableHead>
-                      <TableHead className="w-24">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {mockUsers.map((user) => (
-                      <TableRow key={user.id}>
-                        <TableCell>
-                          <div>
-                            <p className="font-medium">{user.name}</p>
-                            <p className="text-sm text-muted-foreground">{user.email}</p>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="outline">{user.role}</Badge>
-                        </TableCell>
-                        <TableCell>
-                          <Badge className={getStatusBadge(user.status)}>
-                            {user.status}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>{user.joinDate}</TableCell>
-                        <TableCell>{user.applications}</TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <Button variant="ghost" size="sm">
-                              <Eye className="h-4 w-4" />
-                            </Button>
-                            <Button variant="ghost" size="sm">
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                            <Button variant="ghost" size="sm" className="text-red-600 hover:text-red-700">
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
+                    {isLoadingUsers ? (
+                      <TableRow>
+                        <TableCell colSpan={5} className="text-center py-8">
+                          Loading users...
                         </TableCell>
                       </TableRow>
-                    ))}
+                    ) : users.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={5} className="text-center py-8">
+                          No users found.
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      users.map((user: any) => (
+                        <TableRow key={user.id}>
+                          <TableCell>
+                            <div>
+                              <p className="font-medium">{user.firstName} {user.lastName}</p>
+                              <p className="text-sm text-muted-foreground">{user.email}</p>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="outline">{user.role}</Badge>
+                          </TableCell>
+                          <TableCell>
+                            <Badge className={getStatusBadge(user.status)}>
+                              {user.status}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>{new Date(user.createdAt).toLocaleDateString()}</TableCell>
+                          <TableCell>{user._count?.applications || 0}</TableCell>
+                        </TableRow>
+                      ))
+                    )}
                   </TableBody>
                 </Table>
               </CardContent>
@@ -499,35 +532,51 @@ export function Admin() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {mockScholarships.map((scholarship) => (
-                      <TableRow key={scholarship.id}>
-                        <TableCell>
-                          <p className="font-medium">{scholarship.title}</p>
-                        </TableCell>
-                        <TableCell>{scholarship.provider}</TableCell>
-                        <TableCell>
-                          <Badge className={getStatusBadge(scholarship.status)}>
-                            {scholarship.status}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>{scholarship.applicants}</TableCell>
-                        <TableCell>{scholarship.deadline}</TableCell>
-                        <TableCell>{scholarship.value}</TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <Button variant="ghost" size="sm">
-                              <Eye className="h-4 w-4" />
-                            </Button>
-                            <Button variant="ghost" size="sm">
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                            <Button variant="ghost" size="sm" className="text-red-600 hover:text-red-700">
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
+                    {isLoadingScholarships ? (
+                      <TableRow>
+                        <TableCell colSpan={7} className="text-center py-8">
+                          Loading scholarships...
                         </TableCell>
                       </TableRow>
-                    ))}
+                    ) : scholarships.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={7} className="text-center py-8">
+                          No scholarships found.
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      scholarships.map((scholarship) => (
+                        <TableRow key={scholarship.id}>
+                          <TableCell>
+                            <p className="font-medium">{scholarship.title}</p>
+                          </TableCell>
+                          <TableCell>{scholarship.provider}</TableCell>
+                          <TableCell>
+                            <Badge className={getStatusBadge(scholarship.status)}>
+                              {scholarship.status}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>{scholarship._count?.applications || 0}</TableCell>
+                          <TableCell>{scholarship.deadline ? new Date(scholarship.deadline).toLocaleDateString() : "N/A"}</TableCell>
+                          <TableCell>{scholarship.value}</TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              {/* <Button variant="ghost" size="sm">
+                                <Edit className="h-4 w-4" />
+                              </Button> */}
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="text-red-600 hover:text-red-700"
+                                onClick={() => handleDeleteScholarship(scholarship.id)}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
                   </TableBody>
                 </Table>
               </CardContent>
@@ -568,44 +617,77 @@ export function Admin() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {mockApplications.map((app) => (
-                      <TableRow key={app.id}>
-                        <TableCell>
-                          <p className="font-medium">{app.student}</p>
-                        </TableCell>
-                        <TableCell>{app.scholarship}</TableCell>
-                        <TableCell>
-                          <Badge className={getStatusBadge(app.status)}>
-                            {app.status}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>{app.submittedDate}</TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <div className="w-12 h-2 bg-gray-200 rounded-full">
-                              <div
-                                className="h-2 bg-blue-600 rounded-full"
-                                style={{ width: `${app.score}%` }}
-                              ></div>
-                            </div>
-                            <span className="text-sm">{app.score}</span>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <Button variant="ghost" size="sm">
-                              <Eye className="h-4 w-4" />
-                            </Button>
-                            <Button variant="ghost" size="sm" className="text-green-600 hover:text-green-700">
-                              <CheckCircle className="h-4 w-4" />
-                            </Button>
-                            <Button variant="ghost" size="sm" className="text-red-600 hover:text-red-700">
-                              <XCircle className="h-4 w-4" />
-                            </Button>
-                          </div>
+                    {isLoadingApplications ? (
+                      <TableRow>
+                        <TableCell colSpan={6} className="text-center py-8">
+                          Loading applications...
                         </TableCell>
                       </TableRow>
-                    ))}
+                    ) : applications.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={6} className="text-center py-8">
+                          No applications found.
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      applications.map((app) => (
+                        <TableRow key={app.id}>
+                          <TableCell>
+                            <p className="font-medium">{app.user?.firstName} {app.user?.lastName}</p>
+                            <p className="text-xs text-muted-foreground">{app.user?.email}</p>
+                          </TableCell>
+                          <TableCell>{app.scholarship?.title}</TableCell>
+                          <TableCell>
+                            <Badge className={getStatusBadge(app.status)}>
+                              {app.status}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>{new Date(app.updatedAt).toLocaleDateString()}</TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              {app.score ? (
+                                <>
+                                  <div className="w-12 h-2 bg-gray-200 rounded-full">
+                                    <div
+                                      className="h-2 bg-blue-600 rounded-full"
+                                      style={{ width: `${app.score}%` }}
+                                    ></div>
+                                  </div>
+                                  <span className="text-sm">{app.score}</span>
+                                </>
+                              ) : (
+                                <span className="text-muted-foreground">-</span>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              {/* <Button variant="ghost" size="sm">
+                                <Eye className="h-4 w-4" />
+                              </Button> */}
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="text-green-600 hover:text-green-700"
+                                onClick={() => handleReviewApplication(app.id, "APPROVED")}
+                                disabled={app.status === "APPROVED"}
+                              >
+                                <CheckCircle className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="text-red-600 hover:text-red-700"
+                                onClick={() => handleReviewApplication(app.id, "REJECTED")}
+                                disabled={app.status === "REJECTED"}
+                              >
+                                <XCircle className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
                   </TableBody>
                 </Table>
               </CardContent>

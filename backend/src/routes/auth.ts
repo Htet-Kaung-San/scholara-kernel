@@ -35,10 +35,12 @@ router.post(
       await supabaseAdmin.auth.admin.createUser({
         email,
         password,
-        email_confirm: true, // auto-confirm for now; enable email verification later
+        email_confirm: true,
+        user_metadata: { firstName, lastName },
       });
 
     if (authError) {
+      console.error("❌ Supabase Auth Error:", authError);
       res.status(400).json({
         success: false,
         error: authError.message,
@@ -46,9 +48,19 @@ router.post(
       return;
     }
 
-    // Create matching profile in our database
-    const profile = await prisma.profile.create({
-      data: {
+    // Create or get matching profile in our database
+    // We use upsert to be robust:
+    // 1. If trigger works: it finds the existing profile (and does nothing).
+    // 2. If trigger failed/missing: it creates the profile here.
+    const profile = await prisma.profile.upsert({
+      where: { authId: authData.user.id },
+      update: {
+        // Option specific fields if needed, but usually we just want to return the user
+        // We can ensure names are up to date
+        firstName,
+        lastName,
+      },
+      create: {
         authId: authData.user.id,
         email,
         firstName,
@@ -105,13 +117,13 @@ router.post(
         },
         user: profile
           ? {
-              id: profile.id,
-              email: profile.email,
-              firstName: profile.firstName,
-              lastName: profile.lastName,
-              role: profile.role,
-              onboardingCompleted: profile.onboardingCompleted,
-            }
+            id: profile.id,
+            email: profile.email,
+            firstName: profile.firstName,
+            lastName: profile.lastName,
+            role: profile.role,
+            onboardingCompleted: profile.onboardingCompleted,
+          }
           : null,
       },
     });

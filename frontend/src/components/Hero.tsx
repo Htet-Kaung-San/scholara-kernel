@@ -34,12 +34,12 @@ export function Hero() {
               <video
                 src={heroVideo}
                 autoPlay loop muted playsInline
-                className="w-4/5 h-auto pt-[0px] pr-[0px] pb-[20px] pl-[0px] bg-transparent"
+                className="block w-4/5 h-auto bg-transparent"
                 style={{ background: 'transparent', mixBlendMode: 'normal' }}
                 aria-label="Successful product launch by female entrepreneur"
               />
             </div>
-            <div className="absolute -bottom-4 -right-4 w-32 h-32 bg-primary/10 rounded-full blur-3xl"></div>
+            {/* <div className="absolute -bottom-4 -right-4 w-32 h-32 bg-primary/10 rounded-full blur-3xl"></div> */}
             <div className="absolute -top-4 -left-4 w-24 h-24 bg-secondary/20 rounded-full blur-2xl"></div>
           </div>
         </div>
