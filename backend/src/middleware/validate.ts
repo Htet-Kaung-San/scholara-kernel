@@ -31,7 +31,16 @@ export function validate(
     }
 
     // Replace the source with parsed (and coerced) values
-    req[source] = result.data;
+    // req.query may be read-only in newer Express, so use defineProperty
+    if (source === "query") {
+      Object.defineProperty(req, "query", {
+        value: result.data,
+        writable: true,
+        configurable: true,
+      });
+    } else {
+      (req as any)[source] = result.data;
+    }
     next();
   };
 }

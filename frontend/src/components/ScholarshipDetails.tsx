@@ -5,8 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
-import { Separator } from "./ui/separator";
-import { ArrowLeft, Calendar, Globe, DollarSign, Clock, Users, CheckCircle, AlertCircle, FileText } from "lucide-react";
+import { ArrowLeft, Calendar, Globe, DollarSign, Users } from "lucide-react";
 import { api } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -15,19 +14,36 @@ interface Scholarship {
   title: string;
   provider: string;
   country: string;
-  amount: number;
-  currency: string;
   type: string;
-  deadline: string;
+  level: string;
+  duration?: string | null;
+  tuitionWaiver?: string | null;
+  monthlyStipend?: string | null;
+  applicationFee?: string | null;
+  flightTicket?: string | null;
+  maxAge?: number | null;
+  openDate?: string | null;
+  applicationDeadLine?: string | null;
+  deadline?: string | null;
   status: string;
-  description: string;
-  eligibility: string | null;
-  benefits: string | null;
-  requirements: string | null;
-  applicationUrl: string | null;
-  educationLevel: string[];
+  description?: string | null;
+  eligibility?: unknown;
+  benefits?: unknown;
+  requirements?: unknown;
+  timeline?: unknown;
   featured: boolean;
   _count?: { applications: number };
+}
+
+function stringifyRichContent(value: unknown): string | null {
+  if (value === null || value === undefined) return null;
+  if (typeof value === "string") return value;
+  if (Array.isArray(value)) {
+    return value
+      .map((item) => (typeof item === "string" ? item : JSON.stringify(item)))
+      .join("\n");
+  }
+  return JSON.stringify(value, null, 2);
 }
 
 export function ScholarshipDetails() {
@@ -73,11 +89,17 @@ export function ScholarshipDetails() {
     }
   };
 
-  const formatAmount = (amount: number, currency: string) =>
-    new Intl.NumberFormat("en-US", { style: "currency", currency: currency || "USD" }).format(amount);
+  const formatSupport = (s: Scholarship) => {
+    const support = [s.tuitionWaiver, s.monthlyStipend].filter(Boolean).join(" • ");
+    return support || "See benefits below";
+  };
 
-  const formatDate = (dateStr: string) =>
-    new Date(dateStr).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+  const formatDate = (dateStr?: string | null) => {
+    if (!dateStr) return "Not specified";
+    const parsed = new Date(dateStr);
+    if (Number.isNaN(parsed.getTime())) return "Not specified";
+    return parsed.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+  };
 
   if (isLoading) {
     return (
@@ -126,11 +148,13 @@ export function ScholarshipDetails() {
                 </div>
                 <div className="flex items-center gap-2">
                   <Calendar className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm">{formatDate(scholarship.deadline)}</span>
+                  <span className="text-sm">
+                    {formatDate(scholarship.applicationDeadLine ?? scholarship.deadline)}
+                  </span>
                 </div>
                 <div className="flex items-center gap-2">
                   <DollarSign className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm">{formatAmount(scholarship.amount, scholarship.currency)}</span>
+                  <span className="text-sm">{formatSupport(scholarship)}</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <Users className="h-4 w-4 text-muted-foreground" />
@@ -162,14 +186,32 @@ export function ScholarshipDetails() {
             <Card>
               <CardHeader><CardTitle>About this Scholarship</CardTitle></CardHeader>
               <CardContent className="space-y-4">
-                <p className="whitespace-pre-wrap">{scholarship.description}</p>
+                <p className="whitespace-pre-wrap">
+                  {scholarship.description || "No description provided yet."}
+                </p>
                 <div className="mt-4">
-                  <h4 className="font-medium mb-2">Education Levels</h4>
+                  <h4 className="font-medium mb-2">Level</h4>
                   <div className="flex gap-2 flex-wrap">
-                    {scholarship.educationLevel?.map((level) => (
-                      <Badge key={level} variant="outline">{level}</Badge>
-                    ))}
+                    <Badge variant="outline">{scholarship.level || "Not specified"}</Badge>
                   </div>
+                </div>
+                <div className="space-y-2">
+                  <h4 className="font-medium">Key Details</h4>
+                  <p className="text-sm text-muted-foreground">
+                    Duration: {scholarship.duration || "Not specified"}
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    Application Fee: {scholarship.applicationFee || "Not specified"}
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    Flight Ticket: {scholarship.flightTicket || "Not specified"}
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    Max Age: {scholarship.maxAge ?? "Not specified"}
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    Opening Date: {formatDate(scholarship.openDate)}
+                  </p>
                 </div>
               </CardContent>
             </Card>
@@ -180,18 +222,20 @@ export function ScholarshipDetails() {
               <Card>
                 <CardHeader><CardTitle>Eligibility</CardTitle></CardHeader>
                 <CardContent>
-                  {scholarship.eligibility ? (
-                    <p className="whitespace-pre-wrap">{scholarship.eligibility}</p>
+                  {stringifyRichContent(scholarship.eligibility) ? (
+                    <p className="whitespace-pre-wrap">{stringifyRichContent(scholarship.eligibility)}</p>
                   ) : (
-                    <p className="text-muted-foreground">Eligibility criteria not specified. Please check the scholarship provider's website.</p>
+                    <p className="text-muted-foreground">
+                      Eligibility criteria not specified. Please check the scholarship provider details.
+                    </p>
                   )}
                 </CardContent>
               </Card>
               <Card>
                 <CardHeader><CardTitle>Benefits</CardTitle></CardHeader>
                 <CardContent>
-                  {scholarship.benefits ? (
-                    <p className="whitespace-pre-wrap">{scholarship.benefits}</p>
+                  {stringifyRichContent(scholarship.benefits) ? (
+                    <p className="whitespace-pre-wrap">{stringifyRichContent(scholarship.benefits)}</p>
                   ) : (
                     <p className="text-muted-foreground">Benefit details not specified.</p>
                   )}
@@ -204,24 +248,10 @@ export function ScholarshipDetails() {
             <Card>
               <CardHeader><CardTitle>Application Requirements</CardTitle></CardHeader>
               <CardContent>
-                {scholarship.requirements ? (
-                  <p className="whitespace-pre-wrap">{scholarship.requirements}</p>
+                {stringifyRichContent(scholarship.requirements) ? (
+                  <p className="whitespace-pre-wrap">{stringifyRichContent(scholarship.requirements)}</p>
                 ) : (
                   <p className="text-muted-foreground">Requirements not specified. Contact the scholarship provider for details.</p>
-                )}
-                {scholarship.applicationUrl && (
-                  <div className="mt-6 p-4 bg-blue-50 rounded-lg">
-                    <h4 className="flex items-center gap-2 mb-2">
-                      <AlertCircle className="h-4 w-4 text-blue-600" /> External Application
-                    </h4>
-                    <p className="text-sm text-blue-800 mb-2">
-                      This scholarship requires applying through the provider's website.
-                    </p>
-                    <a href={scholarship.applicationUrl} target="_blank" rel="noopener noreferrer"
-                      className="text-sm text-blue-600 hover:underline font-medium">
-                      Visit Application Page →
-                    </a>
-                  </div>
                 )}
               </CardContent>
             </Card>

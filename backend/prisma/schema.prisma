@@ -7,8 +7,9 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_DATABASE_URL")
 }
 
 // ─────────────────────────────────────────────
@@ -88,14 +89,25 @@ model Scholarship {
   title       String
   provider    String
   country     String
-  description String @db.Text
+  description String? @db.Text // Deprecated: Removed from form
   imageUrl    String? @map("image_url")
 
   status       ScholarshipStatus @default(UPCOMING)
   level        String
   duration     String?
-  deadline     DateTime?
-  value        String
+  
+  // New Fields
+  tuitionWaiver     String?   @map("tuition_waiver")
+  monthlyStipend    String?   @map("monthly_stipend")
+  applicationFee    String?   @map("application_fee")
+  flightTicket      String?   @map("flight_ticket")
+  maxAge            Int?      @map("max_age")
+  openDate          DateTime? @map("open_date")
+  applicationDeadLine DateTime? @map("application_deadline")
+
+  // Deprecated
+  deadline     DateTime? // Replaced by applicationDeadLine
+  value        String?   // Replaced by specific financial fields
 
   fieldOfStudy String          @map("field_of_study")
   type         ScholarshipType @default(GOVERNMENT)

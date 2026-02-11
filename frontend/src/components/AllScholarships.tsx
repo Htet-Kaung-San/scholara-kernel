@@ -1,25 +1,26 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router";
 import { Card, CardContent } from "./ui/card";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
 import { Input } from "./ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
-import { Search, Clock, MapPin, DollarSign, SlidersHorizontal, ArrowLeft } from "lucide-react";
-import { api, type ApiResponse } from "@/lib/api";
+import { Search, Clock, MapPin, DollarSign, SlidersHorizontal } from "lucide-react";
+import { api } from "@/lib/api";
 
 interface Scholarship {
   id: string;
   title: string;
   provider: string;
   country: string;
-  amount: number;
-  currency: string;
-  deadline: string;
   status: string;
   type: string;
-  educationLevel: string[];
-  description: string;
+  level: string;
+  duration?: string | null;
+  tuitionWaiver?: string | null;
+  monthlyStipend?: string | null;
+  applicationDeadLine?: string | null;
+  deadline?: string | null;
   featured: boolean;
   _count?: { applications: number };
 }
@@ -31,7 +32,7 @@ export function AllScholarships() {
   const [searchTerm, setSearchTerm] = useState("");
   const [country, setCountry] = useState("all");
   const [type, setType] = useState("all");
-  const [sortBy, setSortBy] = useState("deadline");
+  const [sortBy, setSortBy] = useState("applicationDeadLine");
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
 
@@ -46,7 +47,7 @@ export function AllScholarships() {
         page: String(page),
         limit: "12",
         sortBy,
-        sortOrder: "asc",
+        sortOrder: sortBy === "createdAt" ? "desc" : "asc",
       };
       if (searchTerm) params.search = searchTerm;
       if (country !== "all") params.country = country;
@@ -76,12 +77,11 @@ export function AllScholarships() {
     }
   };
 
-  const formatAmount = (amount: number, currency: string) => {
-    return new Intl.NumberFormat("en-US", { style: "currency", currency: currency || "USD" }).format(amount);
-  };
-
-  const formatDate = (dateStr: string) => {
-    return new Date(dateStr).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+  const formatDate = (dateStr?: string | null) => {
+    if (!dateStr) return "No deadline";
+    const parsed = new Date(dateStr);
+    if (Number.isNaN(parsed.getTime())) return "No deadline";
+    return parsed.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
   };
 
   return (
@@ -117,12 +117,23 @@ export function AllScholarships() {
               <SelectItem value="Australia">Australia</SelectItem>
             </SelectContent>
           </Select>
+          <Select value={type} onValueChange={(v: string) => { setType(v); setPage(1); }}>
+            <SelectTrigger className="w-[180px]"><SelectValue placeholder="Type" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Types</SelectItem>
+              <SelectItem value="GOVERNMENT">Government</SelectItem>
+              <SelectItem value="UNIVERSITY">University</SelectItem>
+              <SelectItem value="PRIVATE">Private</SelectItem>
+              <SelectItem value="NGO">NGO</SelectItem>
+            </SelectContent>
+          </Select>
           <Select value={sortBy} onValueChange={setSortBy}>
             <SelectTrigger className="w-[180px]"><SelectValue placeholder="Sort by" /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="deadline">Deadline</SelectItem>
-              <SelectItem value="amount">Amount</SelectItem>
+              <SelectItem value="applicationDeadLine">Closing Date</SelectItem>
+              <SelectItem value="deadline">Legacy Deadline</SelectItem>
               <SelectItem value="createdAt">Newest</SelectItem>
+              <SelectItem value="title">Title</SelectItem>
             </SelectContent>
           </Select>
           <Button onClick={handleSearch}>
@@ -182,11 +193,18 @@ export function AllScholarships() {
                       </div>
                       <div className="flex items-center gap-2 text-muted-foreground">
                         <DollarSign className="h-4 w-4" />
-                        <span>{formatAmount(scholarship.amount, scholarship.currency)}</span>
+                        <span>
+                          {scholarship.tuitionWaiver ||
+                            scholarship.monthlyStipend ||
+                            scholarship.duration ||
+                            "See details"}
+                        </span>
                       </div>
                       <div className="flex items-center gap-2 text-muted-foreground">
                         <Clock className="h-4 w-4" />
-                        <span>Deadline: {formatDate(scholarship.deadline)}</span>
+                        <span>
+                          Deadline: {formatDate(scholarship.applicationDeadLine ?? scholarship.deadline)}
+                        </span>
                       </div>
                     </div>
                   </CardContent>

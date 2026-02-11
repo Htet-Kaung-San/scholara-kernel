@@ -56,11 +56,12 @@ function AppLayout() {
   const pathname = location.pathname;
 
   const isAuthRoute = AUTH_ROUTES.includes(pathname);
+  const isAdminRoute = pathname.startsWith("/admin");
+
   const showFooter =
     !NO_FOOTER_ROUTES.includes(pathname) &&
-    !pathname.startsWith("/scholarships/");
-
-  const isAdminRoute = pathname.startsWith("/admin");
+    !pathname.startsWith("/scholarships/") &&
+    !isAdminRoute;
 
   return (
     <div className="min-h-screen bg-background">
@@ -107,7 +108,7 @@ function AppLayout() {
           }
         />
         <Route
-          path="/admin"
+          path="/admin/*"
           element={
             <ProtectedRoute requiredRole={["ADMIN", "SUPER_ADMIN"]}>
               <Admin />

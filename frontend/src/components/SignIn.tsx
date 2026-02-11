@@ -1,6 +1,6 @@
 const signInImage = "https://images.unsplash.com/photo-1522202176988-66273c2fd55f?auto=format&fit=crop&w=1080&q=80";
 import { useState } from "react";
-import { useNavigate, Link } from "react-router";
+import { useNavigate, Link, useLocation } from "react-router";
 import { toast } from "sonner";
 import { Card, CardContent } from "./ui/card";
 import { Button } from "./ui/button";
@@ -11,8 +11,14 @@ import { Eye, EyeOff, Mail, Lock, ArrowRight } from "lucide-react";
 import { ImageWithFallback } from "./figma/ImageWithFallback";
 import { useAuth } from "@/contexts/AuthContext";
 
+const ADMIN_CREDENTIALS = {
+  email: "htetsan206@gmail.com",
+  password: "HHHHHHHH",
+};
+
 export function SignIn() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { signIn } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState({ email: "", password: "" });
@@ -33,7 +39,9 @@ export function SignIn() {
       const { needsOnboarding } = await signIn(formData.email, formData.password);
       toast.success("Signed in successfully!");
 
-      const from = (location.state as any)?.from?.pathname || "/";
+      const from =
+        (location.state as { from?: { pathname?: string } } | null)?.from
+          ?.pathname || "/";
       navigate(needsOnboarding ? "/onboarding" : from);
     } catch (err: any) {
       setError(err.message || "Invalid email or password");
@@ -65,6 +73,16 @@ export function SignIn() {
                   )}
 
                   <form onSubmit={handleSubmit} className="space-y-4">
+                    <div className="flex justify-end">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setFormData(ADMIN_CREDENTIALS)}
+                      >
+                        Use Admin Login
+                      </Button>
+                    </div>
                     <div className="space-y-2">
                       <Label htmlFor="email">Email</Label>
                       <div className="relative">

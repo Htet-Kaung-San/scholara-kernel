@@ -65,6 +65,7 @@ router.get(
               title: true,
               provider: true,
               country: true,
+              applicationDeadLine: true,
               deadline: true,
               value: true,
               imageUrl: true,
@@ -117,8 +118,9 @@ router.post(
       return;
     }
 
-    // Check for deadline
-    if (scholarship.deadline && scholarship.deadline < new Date()) {
+    // Check for closing date (new field with legacy fallback)
+    const closingDate = scholarship.applicationDeadLine ?? scholarship.deadline;
+    if (closingDate && closingDate < new Date()) {
       res.status(400).json({
         success: false,
         error: "Application deadline has passed",

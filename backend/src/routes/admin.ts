@@ -20,14 +20,23 @@ router.use(authenticate, requireAdmin);
 const createScholarshipSchema = z.object({
   title: z.string().min(1).max(300),
   provider: z.string().min(1).max(200),
-  country: z.string().min(1).max(100),
-  description: z.string().min(1),
-  imageUrl: z.string().url().nullable().optional(),
-  status: z.enum(["OPEN", "CLOSED", "UPCOMING", "DRAFT"]).default("DRAFT"),
-  level: z.string().min(1),
+  country: z.string().min(1).max(200),
+  level: z.string().min(1).max(100),
+  status: z.enum(["OPEN", "CLOSED", "UPCOMING", "DRAFT"]).optional(),
   duration: z.string().nullable().optional(),
+  tuitionWaiver: z.string().nullable().optional(),
+  monthlyStipend: z.string().nullable().optional(),
+  applicationFee: z.string().nullable().optional(),
+  flightTicket: z.string().nullable().optional(),
+  maxAge: z.coerce.number().int().optional().nullable(),
+  openDate: z.coerce.date().nullable().optional(),
+  applicationDeadLine: z.coerce.date().nullable().optional(),
+
+  // Deprecated/Removed from form
+  description: z.string().optional(),
+  value: z.string().optional(),
   deadline: z.coerce.date().nullable().optional(),
-  value: z.string().min(1),
+
   fieldOfStudy: z.string().min(1),
   type: z.enum(["GOVERNMENT", "UNIVERSITY", "PRIVATE", "NGO"]).default("GOVERNMENT"),
   eligibility: z.any().optional(),
@@ -92,7 +101,7 @@ router.get(
           totalScholarships,
           totalApplications,
           applicationsByStatus: Object.fromEntries(
-            applicationsByStatus.map((g: { status: string; _count: number }) => [g.status, g._count]),
+            applicationsByStatus.map((g) => [g.status, g._count]),
           ),
         },
         recentApplications,

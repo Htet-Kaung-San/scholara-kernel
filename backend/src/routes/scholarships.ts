@@ -23,7 +23,7 @@ const scholarshipFilterSchema = paginationSchema.extend({
   fieldOfStudy: z.string().optional(),
   featured: z.coerce.boolean().optional(),
   sortBy: z
-    .enum(["deadline", "createdAt", "title"])
+    .enum(["applicationDeadLine", "deadline", "createdAt", "title"])
     .default("createdAt"),
   sortOrder: z.enum(["asc", "desc"]).default("desc"),
 });
@@ -79,6 +79,9 @@ router.get(
       prisma.scholarship.findMany({
         where,
         orderBy: { [sortBy]: sortOrder },
+        include: {
+          _count: { select: { applications: true } },
+        },
         skip,
         take: limit,
       }),
@@ -106,7 +109,7 @@ router.get(
   asyncHandler(async (_req, res) => {
     const scholarships = await prisma.scholarship.findMany({
       where: { featured: true, status: "OPEN" },
-      orderBy: { deadline: "asc" },
+      orderBy: { applicationDeadLine: "asc" },
       take: 6,
     });
 
