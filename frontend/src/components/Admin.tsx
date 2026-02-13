@@ -42,10 +42,10 @@ import {
   CheckCircle,
   XCircle,
   Clock,
-  MapPin,
-  DollarSign,
   Mail,
   LogOut,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { ImageWithFallback } from "./figma/ImageWithFallback";
 import { useNavigate, useLocation } from "react-router";
@@ -323,6 +323,7 @@ export function Admin() {
   const [scholarshipCountry, setScholarshipCountry] = useState("all");
   const [scholarshipType, setScholarshipType] = useState("all");
   const [scholarshipSortBy, setScholarshipSortBy] = useState("applicationDeadLine");
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
   const resetCreateScholarshipFormState = () => {
     setCreateImageUrls([]);
@@ -653,17 +654,45 @@ export function Admin() {
   return (
     <div className="flex min-h-screen bg-[#fafbfc]">
       {/* ═══ LEFT SIDEBAR ═══ */}
-      <aside className="w-64 bg-white text-black flex flex-col fixed top-0 left-0 h-screen z-40 border-r border-gray-200">
+      <aside
+        className={`${isSidebarCollapsed ? "w-20" : "w-64"} bg-white text-black flex flex-col fixed top-0 left-0 h-screen z-40 border-r border-gray-200 transition-all duration-200`}
+      >
         {/* Brand */}
-        <div className="px-6 py-5 border-b border-gray-200">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-lg bg-black flex items-center justify-center">
-              <Shield className="h-5 w-5 text-white" />
+        <div className={`${isSidebarCollapsed ? "px-3" : "px-6"} relative py-5 border-b border-gray-200`}>
+          <div className={`flex items-center ${isSidebarCollapsed ? "justify-center" : "justify-between"} gap-3`}>
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-lg bg-black flex items-center justify-center">
+                <Shield className="h-5 w-5 text-white" />
+              </div>
+              {!isSidebarCollapsed && (
+                <div>
+                  <h1 className="text-base font-semibold tracking-tight text-black">ScholarAid</h1>
+                  <p className="text-[11px] text-gray-400 font-medium">Admin Panel</p>
+                </div>
+              )}
             </div>
-            <div>
-              <h1 className="text-base font-semibold tracking-tight text-black">ScholarAid</h1>
-              <p className="text-[11px] text-gray-400 font-medium">Admin Panel</p>
-            </div>
+            {!isSidebarCollapsed && (
+              <button
+                type="button"
+                onClick={() => setIsSidebarCollapsed(true)}
+                className="rounded-md border border-gray-200 p-1.5 text-gray-500 hover:text-black hover:bg-gray-50"
+                aria-label="Collapse sidebar"
+                title="Collapse sidebar"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </button>
+            )}
+            {isSidebarCollapsed && (
+              <button
+                type="button"
+                onClick={() => setIsSidebarCollapsed(false)}
+                className="absolute top-4 right-2 rounded-md border border-gray-200 bg-white p-1.5 text-gray-500 hover:text-black hover:bg-gray-50"
+                aria-label="Expand sidebar"
+                title="Expand sidebar"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </button>
+            )}
           </div>
         </div>
 
@@ -675,13 +704,14 @@ export function Admin() {
               <button
                 key={item.key}
                 onClick={() => navigate(item.path)}
-                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150 ${isActive
+                title={item.label}
+                className={`w-full flex items-center rounded-lg text-sm font-medium transition-all duration-150 ${isSidebarCollapsed ? "justify-center px-0 py-2.5" : "gap-3 px-3 py-2.5"} ${isActive
                   ? "bg-gray-100 text-black"
                   : "text-gray-500 hover:text-black hover:bg-gray-50"
                   }`}
               >
                 <item.icon className={`h-[18px] w-[18px] ${isActive ? "text-black" : ""}`} />
-                {item.label}
+                {!isSidebarCollapsed && item.label}
               </button>
             );
           })}
@@ -691,23 +721,25 @@ export function Admin() {
         <div className="px-3 py-4 border-t border-gray-200 space-y-1">
           <button
             onClick={() => navigate("/")}
-            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-500 hover:text-black hover:bg-gray-50 transition-all"
+            title="View Site"
+            className={`w-full flex items-center rounded-lg text-sm font-medium text-gray-500 hover:text-black hover:bg-gray-50 transition-all ${isSidebarCollapsed ? "justify-center px-0 py-2.5" : "gap-3 px-3 py-2.5"}`}
           >
             <Globe className="h-[18px] w-[18px]" />
-            View Site
+            {!isSidebarCollapsed && "View Site"}
           </button>
           <button
             onClick={handleSignOut}
-            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-red-500 hover:text-red-600 hover:bg-red-50 transition-all"
+            title="Log Out"
+            className={`w-full flex items-center rounded-lg text-sm font-medium text-red-500 hover:text-red-600 hover:bg-red-50 transition-all ${isSidebarCollapsed ? "justify-center px-0 py-2.5" : "gap-3 px-3 py-2.5"}`}
           >
             <LogOut className="h-[18px] w-[18px]" />
-            Log Out
+            {!isSidebarCollapsed && "Log Out"}
           </button>
         </div>
       </aside>
 
       {/* ═══ MAIN CONTENT ═══ */}
-      <main className="flex-1 ml-64">
+      <main className={`flex-1 transition-all duration-200 ${isSidebarCollapsed ? "ml-20" : "ml-64"}`}>
         {/* Top Bar */}
         <header className="sticky top-0 z-30 bg-white border-b border-gray-200 px-8 py-4 flex items-center justify-between">
           <div>
@@ -2041,22 +2073,32 @@ export function Admin() {
               </div>
 
               {isLoadingScholarships ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                  {[...Array(6)].map((_, i) => (
-                    <Card key={i} className="animate-pulse">
-                      <CardContent className="p-6">
-                        <div className="h-4 bg-muted rounded w-1/3 mb-4" />
-                        <div className="h-5 bg-muted rounded w-3/4 mb-2" />
-                        <div className="h-4 bg-muted rounded w-1/2 mb-6" />
-                        <div className="space-y-3">
-                          <div className="h-4 bg-muted rounded w-2/3" />
-                          <div className="h-4 bg-muted rounded w-3/4" />
-                          <div className="h-4 bg-muted rounded w-1/2" />
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
+                <Card>
+                  <CardContent className="p-0">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Scholarship</TableHead>
+                          <TableHead>Country</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead>Featured</TableHead>
+                          <TableHead>Closing Date</TableHead>
+                          <TableHead>Applicants</TableHead>
+                          <TableHead className="w-40 text-right">Actions</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {[...Array(6)].map((_, i) => (
+                          <TableRow key={i}>
+                            <TableCell colSpan={7}>
+                              <div className="h-10 animate-pulse rounded bg-muted" />
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </CardContent>
+                </Card>
               ) : scholarships.length === 0 ? (
                 <Card>
                   <CardContent className="flex flex-col items-center justify-center py-16">
@@ -2068,100 +2110,100 @@ export function Admin() {
                   </CardContent>
                 </Card>
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                  {scholarships.map((s: any) => (
-                    <Card
-                      key={s.id}
-                      className="group hover:shadow-lg transition-shadow cursor-pointer"
-                      onClick={() => navigate(`/scholarships/${s.id}`)}
-                    >
-                      <CardContent className="p-6 space-y-4">
-                        <div className="flex items-start justify-between gap-2">
-                          <Badge className={getStatusBadge(s.status)}>{s.status}</Badge>
-                          {s.featured ? (
-                            <Badge variant="outline" className="bg-yellow-50 text-yellow-700">
-                              Featured
-                            </Badge>
-                          ) : null}
-                        </div>
-
-                        {getPrimaryImageUrl(s.imageUrl) ? (
-                          <div className="h-40 overflow-hidden rounded-md border border-border">
-                            <ImageWithFallback
-                              src={getPrimaryImageUrl(s.imageUrl)}
-                              alt={s.title}
-                              className="h-full w-full object-cover"
-                            />
-                          </div>
-                        ) : null}
-
-                        <div>
-                          <h3 className="font-semibold text-lg leading-tight line-clamp-2">
-                            {s.title}
-                          </h3>
-                          <p className="text-sm text-muted-foreground mt-1">{s.provider}</p>
-                        </div>
-
-                        <div className="space-y-2 text-sm text-muted-foreground">
-                          <div className="flex items-center gap-2">
-                            <MapPin className="h-4 w-4" />
-                            <span>{s.country || "Country not specified"}</span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <DollarSign className="h-4 w-4" />
-                            <span>
-                              {s.tuitionWaiver ||
-                                s.monthlyStipend ||
-                                s.duration ||
-                                "See details"}
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Clock className="h-4 w-4" />
-                            <span>
-                              Deadline: {formatDate(s.applicationDeadLine ?? s.deadline)}
-                            </span>
-                          </div>
-                          <div className="flex items-center justify-between pt-1">
-                            <span>Applicants</span>
-                            <span className="font-medium text-foreground">
+                <Card>
+                  <CardContent className="p-0">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Scholarship</TableHead>
+                          <TableHead>Country</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead>Featured</TableHead>
+                          <TableHead>Closing Date</TableHead>
+                          <TableHead>Applicants</TableHead>
+                          <TableHead className="w-40 text-right">Actions</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {scholarships.map((s: any) => (
+                          <TableRow
+                            key={s.id}
+                            className="cursor-pointer hover:bg-muted/40"
+                            onClick={() => navigate(`/scholarships/${s.id}`)}
+                          >
+                            <TableCell>
+                              <div className="flex items-center gap-3 min-w-0">
+                                {getPrimaryImageUrl(s.imageUrl) ? (
+                                  <div className="h-12 w-12 overflow-hidden rounded-md border border-border shrink-0">
+                                    <ImageWithFallback
+                                      src={getPrimaryImageUrl(s.imageUrl)}
+                                      alt={s.title}
+                                      className="h-full w-full object-cover"
+                                    />
+                                  </div>
+                                ) : (
+                                  <div className="h-12 w-12 rounded-md border border-dashed border-border bg-muted/40 shrink-0" />
+                                )}
+                                <div className="min-w-0">
+                                  <p className="font-medium truncate">{s.title}</p>
+                                  <p className="text-xs text-muted-foreground truncate">{s.provider}</p>
+                                </div>
+                              </div>
+                            </TableCell>
+                            <TableCell className="max-w-[220px]">
+                              <p className="truncate text-sm text-muted-foreground">
+                                {s.country || "Country not specified"}
+                              </p>
+                            </TableCell>
+                            <TableCell>
+                              <Badge className={getStatusBadge(s.status)}>{s.status}</Badge>
+                            </TableCell>
+                            <TableCell>
+                              {s.featured ? (
+                                <Badge variant="outline" className="bg-yellow-50 text-yellow-700">
+                                  Featured
+                                </Badge>
+                              ) : (
+                                <span className="text-muted-foreground text-sm">-</span>
+                              )}
+                            </TableCell>
+                            <TableCell className="text-sm text-muted-foreground">
+                              {formatDate(s.applicationDeadLine ?? s.deadline)}
+                            </TableCell>
+                            <TableCell className="font-medium text-foreground">
                               {s._count?.applications || 0}
-                            </span>
-                          </div>
-                        </div>
-
-                        <div className="flex gap-2 pt-2">
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            className="flex-1"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setEditingScholarship(s);
-                            }}
-                          >
-                            <Pencil className="h-4 w-4 mr-2" />
-                            Edit
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="destructive"
-                            size="sm"
-                            className="flex-1"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleDeleteScholarship(s.id);
-                            }}
-                          >
-                            <Trash2 className="h-4 w-4 mr-2" />
-                            Delete
-                          </Button>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <div
+                                className="flex justify-end gap-2"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => setEditingScholarship(s)}
+                                >
+                                  <Pencil className="h-4 w-4 mr-2" />
+                                  Edit
+                                </Button>
+                                <Button
+                                  type="button"
+                                  variant="destructive"
+                                  size="sm"
+                                  onClick={() => handleDeleteScholarship(s.id)}
+                                >
+                                  <Trash2 className="h-4 w-4 mr-2" />
+                                  Delete
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </CardContent>
+                </Card>
               )}
             </div>
           )}
