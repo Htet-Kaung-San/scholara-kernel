@@ -1,0 +1,308 @@
+{
+  "name": "Scholarship Leads via Serper -> Supabase (Manual) [FIXED]",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "7f6fd4ca-a136-4832-b6c1-7a3127840e1a",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        256,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "id-1",
+              "name": "query",
+              "value": "undergraduate scholarships 2024",
+              "type": "string"
+            },
+            {
+              "id": "id-2",
+              "name": "provider",
+              "value": "serper",
+              "type": "string"
+            },
+            {
+              "id": "id-3",
+              "name": "country",
+              "value": "International",
+              "type": "string"
+            },
+            {
+              "id": "id-4",
+              "name": "level",
+              "value": "ALL",
+              "type": "string"
+            },
+            {
+              "id": "id-5",
+              "name": "field_of_study",
+              "value": "All Fields",
+              "type": "string"
+            },
+            {
+              "id": "id-6",
+              "name": "num",
+              "value": 10,
+              "type": "number"
+            },
+            {
+              "id": "a50e51db-fc26-4eb0-9243-969beeff12ac",
+              "name": "apiKey",
+              "value": "90c44c4109faf61d8a44f70f427a22f6302656d7",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "e98400e3-3d69-47a1-ba0c-b54a5fe4f6d2",
+      "name": "Set Search Parameters",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        480,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://google.serper.dev/search",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-API-Key",
+              "value": "={{ $('Set Search Parameters').item.json.apiKey }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "q",
+              "value": "={{ $('Set Search Parameters').item.json.query }}"
+            },
+            {
+              "name": "num",
+              "value": "={{ $('Set Search Parameters').item.json.num }}"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "id": "ab5c8e25-e470-49d1-a67e-ed2e4d0748c9",
+      "name": "Search via Serper.dev",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        704,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "id-1",
+              "name": "id",
+              "value": "={{ $now.toString() + '_' + Math.random().toString(36).substring(7) }}",
+              "type": "string"
+            },
+            {
+              "id": "id-2",
+              "name": "title",
+              "value": "={{ $json.title || 'Untitled' }}",
+              "type": "string"
+            },
+            {
+              "id": "id-3",
+              "name": "value",
+              "value": "={{ $json.link || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "id-4",
+              "name": "description",
+              "value": "={{ 'Source: ' + ($json.source || 'N/A') + ' | Query: ' + $('Set Search Parameters').item.json.query + ' | Title: ' + ($json.title || 'N/A') + ' | URL: ' + ($json.link || 'N/A') + ' | Snippet: ' + ($json.snippet || 'N/A') }}",
+              "type": "string"
+            },
+            {
+              "id": "id-5",
+              "name": "provider",
+              "value": "={{ $('Set Search Parameters').item.json.provider }}",
+              "type": "string"
+            },
+            {
+              "id": "id-6",
+              "name": "country",
+              "value": "={{ $('Set Search Parameters').item.json.country }}",
+              "type": "string"
+            },
+            {
+              "id": "id-7",
+              "name": "level",
+              "value": "={{ $('Set Search Parameters').item.json.level }}",
+              "type": "string"
+            },
+            {
+              "id": "id-8",
+              "name": "field_of_study",
+              "value": "={{ $('Set Search Parameters').item.json.field_of_study }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "cb35b278-2478-430d-8eaa-6ed192ccdf70",
+      "name": "Transform Results",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        928,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "tableId": "scholarships",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "title",
+              "fieldValue": "={{ $json.title }}"
+            },
+            {
+              "fieldId": "value",
+              "fieldValue": "={{ $json.value }}"
+            },
+            {
+              "fieldId": "description",
+              "fieldValue": "={{ $json.description }}"
+            },
+            {
+              "fieldId": "provider",
+              "fieldValue": "={{ $json.provider }}"
+            },
+            {
+              "fieldId": "country",
+              "fieldValue": "={{ $json.country }}"
+            },
+            {
+              "fieldId": "level",
+              "fieldValue": "={{ $json.level }}"
+            },
+            {
+              "fieldId": "field_of_study",
+              "fieldValue": "={{ $json.field_of_study }}"
+            },
+            {
+              "fieldId": "updated_at",
+              "fieldValue": "2026-02-13"
+            }
+          ]
+        }
+      },
+      "id": "f00b2639-aa9a-429a-bc11-cd859ce1ea51",
+      "name": "Insert to Supabase",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        1152,
+        304
+      ],
+      "alwaysOutputData": false,
+      "credentials": {
+        "supabaseApi": {
+          "id": "CXEiPBG5r1MSaFJv",
+          "name": "Supabase account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Set Search Parameters",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Search Parameters": {
+      "main": [
+        [
+          {
+            "node": "Search via Serper.dev",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Search via Serper.dev": {
+      "main": [
+        [
+          {
+            "node": "Transform Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Transform Results": {
+      "main": [
+        [
+          {
+            "node": "Insert to Supabase",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert to Supabase": {
+      "main": [
+        []
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "a4fbbff8-6473-4a60-bb19-c28d039ad330",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "a2b74e086ef9c2b67c06ace9c0950d65d83006e1c4e07e31c7658e003e35b4d6"
+  },
+  "id": "0kpVKM90jGtWnXr3",
+  "tags": []
+}
