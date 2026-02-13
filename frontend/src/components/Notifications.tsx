@@ -40,6 +40,10 @@ export function Notifications() {
     }
   };
 
+  const emitNotificationsChanged = () => {
+    window.dispatchEvent(new Event("notifications:changed"));
+  };
+
   const unreadCount = notifications.filter((n) => !n.isRead).length;
 
   const getIcon = (type: string, category: string) => {
@@ -60,18 +64,22 @@ export function Notifications() {
     try {
       await api.patch("/notifications/read-all", {});
       setNotifications(notifications.map((n) => ({ ...n, isRead: true })));
+      emitNotificationsChanged();
     } catch {
       // Local-only fallback
       setNotifications(notifications.map((n) => ({ ...n, isRead: true })));
+      emitNotificationsChanged();
     }
   };
 
   const markAsRead = async (id: string) => {
     try {
-      await api.patch(`/notifications/${id}/read`, {});
+      await api.patch("/notifications/read", { ids: [id] });
       setNotifications(notifications.map((n) => (n.id === id ? { ...n, isRead: true } : n)));
+      emitNotificationsChanged();
     } catch {
       setNotifications(notifications.map((n) => (n.id === id ? { ...n, isRead: true } : n)));
+      emitNotificationsChanged();
     }
   };
 

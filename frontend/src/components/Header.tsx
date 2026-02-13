@@ -2,9 +2,10 @@ import { Button } from "./ui/button";
 import { Card, CardContent } from "./ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { Menu, X, Bell, User, LogOut, Shield } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate, useLocation, Link } from "react-router";
 import { useAuth } from "@/contexts/AuthContext";
+import { api } from "@/lib/api";
 
 export function Header() {
   const navigate = useNavigate();
@@ -12,6 +13,7 @@ export function Header() {
   const { user, isAuthenticated, signOut } = useAuth();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
+  const [unreadNotifications, setUnreadNotifications] = useState(0);
   const profileRef = useRef<HTMLDivElement>(null);
 
   const currentPage = location.pathname;
@@ -50,6 +52,35 @@ export function Header() {
   const userInitials = user
     ? `${user.firstName?.[0] || ""}${user.lastName?.[0] || ""}`.toUpperCase() || "U"
     : "U";
+
+  const fetchUnreadNotifications = useCallback(async () => {
+    if (!isAuthenticated || !user) {
+      setUnreadNotifications(0);
+      return;
+    }
+
+    try {
+      const res = await api.get<any[]>("/notifications", { page: "1", limit: "1" });
+      setUnreadNotifications(res.meta?.unreadCount ?? 0);
+    } catch {
+      setUnreadNotifications(0);
+    }
+  }, [isAuthenticated, user]);
+
+  useEffect(() => {
+    fetchUnreadNotifications();
+  }, [fetchUnreadNotifications, currentPage]);
+
+  useEffect(() => {
+    const onNotificationsChanged = () => {
+      fetchUnreadNotifications();
+    };
+
+    window.addEventListener("notifications:changed", onNotificationsChanged as EventListener);
+    return () => {
+      window.removeEventListener("notifications:changed", onNotificationsChanged as EventListener);
+    };
+  }, [fetchUnreadNotifications]);
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -94,9 +125,14 @@ export function Header() {
                   variant="ghost"
                   size="sm"
                   onClick={() => handleNavigation("/notifications")}
-                  className="flex items-center gap-2"
+                  className="relative flex items-center gap-2"
                 >
                   <Bell className="h-4 w-4" />
+                  {unreadNotifications > 0 && (
+                    <span className="absolute -top-1 -right-1 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-semibold text-white">
+                      {unreadNotifications > 99 ? "99+" : unreadNotifications}
+                    </span>
+                  )}
                 </Button>
 
                 {/* Profile Avatar + Dropdown */}
@@ -226,7 +262,7 @@ export function Header() {
                     onClick={() => handleNavigation("/notifications")}
                     className="block w-full text-left px-3 py-2 hover:text-primary transition-colors"
                   >
-                    Notifications
+                    Notifications{unreadNotifications > 0 ? ` (${unreadNotifications})` : ""}
                   </button>
                   <div className="flex flex-col space-y-2 px-3 py-2">
                     <Button variant="outline" size="sm" onClick={handleSignOut}>
