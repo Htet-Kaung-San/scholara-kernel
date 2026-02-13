@@ -1,4 +1,3 @@
-const signInImage = "https://images.unsplash.com/photo-1522202176988-66273c2fd55f?auto=format&fit=crop&w=1080&q=80";
 import { useState } from "react";
 import { useNavigate, Link, useLocation } from "react-router";
 import { toast } from "sonner";
@@ -7,9 +6,10 @@ import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Separator } from "./ui/separator";
+import { Checkbox } from "./ui/checkbox";
 import { Eye, EyeOff, Mail, Lock, ArrowRight } from "lucide-react";
-import { ImageWithFallback } from "./figma/ImageWithFallback";
 import { useAuth } from "@/contexts/AuthContext";
+import signInVideo from "@/assets/journal-man-about-to-insert-plug-into-socket.webm";
 
 const ADMIN_CREDENTIALS = {
   email: "htetsan206@gmail.com",
@@ -22,6 +22,7 @@ export function SignIn() {
   const { signIn } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState({ email: "", password: "" });
+  const [rememberMe, setRememberMe] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -36,7 +37,11 @@ export function SignIn() {
     setError("");
 
     try {
-      const { needsOnboarding } = await signIn(formData.email, formData.password);
+      const { needsOnboarding } = await signIn(
+        formData.email,
+        formData.password,
+        rememberMe
+      );
       toast.success("Signed in successfully!");
 
       const from =
@@ -54,10 +59,10 @@ export function SignIn() {
   return (
     <div className="min-h-screen bg-background">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="flex items-center justify-center min-h-[80vh]">
-          <div className="w-full max-w-6xl">
-            <Card className="border-2 border-primary shadow-lg">
-              <CardContent className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div className="flex items-center justify-center min-h-[76vh]">
+          <div className="w-full max-w-5xl">
+            <Card className="border-2">
+              <CardContent className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <div className="space-y-4 p-[16px]">
                   <div>
                     <h2 className="text-[32px] text-center">Welcome Back!!</h2>
@@ -122,7 +127,15 @@ export function SignIn() {
                       </div>
                     </div>
 
-                    <div className="flex justify-end">
+                    <div className="flex items-center justify-between">
+                      <label htmlFor="remember-me" className="flex items-center gap-2 text-sm">
+                        <Checkbox
+                          id="remember-me"
+                          checked={rememberMe}
+                          onCheckedChange={(checked) => setRememberMe(checked === true)}
+                        />
+                        Remember me
+                      </label>
                       <Link to="/forgot-password" className="text-sm text-primary hover:underline">
                         Forgot your password?
                       </Link>
@@ -148,10 +161,13 @@ export function SignIn() {
                 </div>
 
                 <div className="hidden lg:block">
-                  <div className="relative h-full max-h-[550px]">
-                    <ImageWithFallback
-                      src={signInImage}
-                      alt="Student studying online learning"
+                  <div className="relative h-full max-h-[480px]">
+                    <video
+                      src={signInVideo}
+                      autoPlay
+                      muted
+                      loop
+                      playsInline
                       className="w-full h-full object-cover rounded-xl"
                     />
                   </div>
@@ -159,11 +175,6 @@ export function SignIn() {
               </CardContent>
             </Card>
 
-            <div className="text-center mt-4">
-              <Link to="/" className="text-sm text-muted-foreground hover:text-primary">
-                ← Back to home
-              </Link>
-            </div>
           </div>
         </div>
       </div>

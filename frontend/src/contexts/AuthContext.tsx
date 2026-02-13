@@ -35,7 +35,11 @@ interface AuthState {
 }
 
 interface AuthContextValue extends AuthState {
-    signIn: (email: string, password: string) => Promise<{ needsOnboarding: boolean }>;
+    signIn: (
+        email: string,
+        password: string,
+        rememberSession?: boolean
+    ) => Promise<{ needsOnboarding: boolean }>;
     signUp: (data: SignUpData) => Promise<void>;
     signOut: () => Promise<void>;
     refreshUser: () => Promise<void>;
@@ -54,23 +58,69 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 
 // ─── Storage Keys ────────────────────────────
 
-const SESSION_KEY = "scholara_session";
+const PERSISTENT_SESSION_KEY = "scholara_session";
+const TEMP_SESSION_KEY = "scholara_session_temp";
 
-function saveSession(session: Session) {
-    localStorage.setItem(SESSION_KEY, JSON.stringify(session));
+function saveSession(session: Session, rememberSession: boolean) {
+    if (rememberSession) {
+        localStorage.setItem(PERSISTENT_SESSION_KEY, JSON.stringify(session));
+        sessionStorage.removeItem(TEMP_SESSION_KEY);
+        return;
+    }
+
+    sessionStorage.setItem(TEMP_SESSION_KEY, JSON.stringify(session));
+    localStorage.removeItem(PERSISTENT_SESSION_KEY);
 }
 
-function loadSession(): Session | null {
+function loadSession(): { session: Session; rememberSession: boolean } | null {
     try {
-        const stored = localStorage.getItem(SESSION_KEY);
-        return stored ? JSON.parse(stored) : null;
+        const persistent = localStorage.getItem(PERSISTENT_SESSION_KEY);
+        if (persistent) {
+            return { session: JSON.parse(persistent), rememberSession: true };
+        }
+
+        const temporary = sessionStorage.getItem(TEMP_SESSION_KEY);
+        if (temporary) {
+            return { session: JSON.parse(temporary), rememberSession: false };
+        }
+
+        return null;
     } catch {
         return null;
     }
 }
 
 function clearSession() {
-    localStorage.removeItem(SESSION_KEY);
+    localStorage.removeItem(PERSISTENT_SESSION_KEY);
+    sessionStorage.removeItem(TEMP_SESSION_KEY);
+}
+
+async function syncSupabaseSession(session: Session | null) {
+    if (!session) {
+        await supabase.auth.signOut();
+        return;
+    }
+
+    await supabase.auth.setSession({
+        access_token: session.accessToken,
+        refresh_token: session.refreshToken,
+    });
+}
+
+function hasRecoveryLinkParams() {
+    if (typeof window === "undefined") return false;
+    const url = new URL(window.location.href);
+    const search = url.searchParams;
+    const hash = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+
+    return (
+        search.get("type") === "recovery" ||
+        hash.get("type") === "recovery" ||
+        Boolean(search.get("token")) ||
+        Boolean(search.get("token_hash")) ||
+        Boolean(search.get("code")) ||
+        Boolean(hash.get("access_token"))
+    );
 }
 
 // ─── Provider ────────────────────────────────
@@ -97,10 +147,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Initialize auth state on mount
     useEffect(() => {
         const initAuth = async () => {
-            const session = loadSession();
-            if (!session) {
+            const storedSession = loadSession();
+            if (!storedSession) {
+                // Keep recovery-link sessions alive for /reset-password flow.
+                if (!hasRecoveryLinkParams()) {
+                    await syncSupabaseSession(null);
+                }
+                setAccessToken(null);
                 setState((s) => ({ ...s, isLoading: false }));
                 return;
+            }
+            const { session, rememberSession } = storedSession;
+
+            try {
+                await syncSupabaseSession(session);
+            } catch {
+                // Continue with backend session validation even if Supabase sync fails.
             }
 
             // Try to use existing token
@@ -129,7 +191,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                         refreshToken: res.data.refreshToken,
                         expiresAt: res.data.expiresAt,
                     };
-                    saveSession(newSession);
+                    saveSession(newSession, rememberSession);
+                    try {
+                        await syncSupabaseSession(newSession);
+                    } catch {
+                        // no-op
+                    }
                     const refreshedUser = await fetchUser(newSession.accessToken);
                     setState({
                         user: refreshedUser,
@@ -146,6 +213,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             // Both failed — clear session
             clearSession();
             setAccessToken(null);
+            await syncSupabaseSession(null);
             setState({ user: null, session: null, isLoading: false, isAuthenticated: false });
         };
 
@@ -155,7 +223,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // ─── Auth Methods ────────────────────────────
 
     const signIn = useCallback(
-        async (email: string, password: string): Promise<{ needsOnboarding: boolean }> => {
+        async (
+            email: string,
+            password: string,
+            rememberSession = true
+        ): Promise<{ needsOnboarding: boolean }> => {
             const res = await api.post<{
                 session: Session;
                 user: User | null;
@@ -171,8 +243,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 expiresAt: res.data.session.expiresAt,
             };
 
-            saveSession(session);
+            saveSession(session, rememberSession);
             setAccessToken(session.accessToken);
+            try {
+                await syncSupabaseSession(session);
+            } catch {
+                // no-op
+            }
 
             // Fetch full profile
             const user = await fetchUser(session.accessToken);
@@ -192,7 +269,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         async (data: SignUpData) => {
             await api.post("/auth/signup", data);
             // After signup, auto sign in
-            await signIn(data.email, data.password);
+            await signIn(data.email, data.password, true);
         },
         [signIn]
     );
@@ -205,6 +282,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
         clearSession();
         setAccessToken(null);
+        try {
+            await syncSupabaseSession(null);
+        } catch {
+            // no-op
+        }
         setState({
             user: null,
             session: null,

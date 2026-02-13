@@ -7,9 +7,10 @@ import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { Checkbox } from "./ui/checkbox";
-import { ChevronLeft, ChevronRight, Check } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { api } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
+import handsMakingHeartSignVideo from "@/assets/hands-making-heart-shape-sign.webm";
 
 const countries = [
   "United States", "United Kingdom", "Canada", "Australia", "Germany",
@@ -91,9 +92,15 @@ export function Onboarding() {
       <div className="min-h-screen bg-background flex items-center justify-center p-4">
         <Card className="w-full max-w-md">
           <CardContent className="pt-8 pb-8 text-center">
-            <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
-              <Check className="w-8 h-8 text-green-600" />
-            </div>
+            <video
+              src={handsMakingHeartSignVideo}
+              autoPlay
+              muted
+              loop
+              playsInline
+              className="w-32 h-32 object-contain mx-auto mb-6"
+              aria-hidden="true"
+            />
             <h1 className="mb-4">Welcome! 🎉</h1>
             <p className="text-muted-foreground mb-6">
               Your profile is complete. Start exploring scholarships now!

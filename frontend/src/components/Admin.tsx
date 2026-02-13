@@ -50,6 +50,7 @@ import {
 import { ImageWithFallback } from "./figma/ImageWithFallback";
 import { useNavigate, useLocation } from "react-router";
 import { api } from "@/lib/api";
+import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 
 // ─── Helpers ─────────────────────────────────
@@ -83,6 +84,158 @@ function formatDate(value?: string | null) {
     year: "numeric",
   });
 }
+
+const COUNTRY_OPTIONS = [
+  "Australia",
+  "Austria",
+  "Belgium",
+  "Brunei",
+  "Canada",
+  "China",
+  "Denmark",
+  "Finland",
+  "France",
+  "Germany",
+  "Hong Kong",
+  "Hungary",
+  "India",
+  "Indonesia",
+  "Ireland",
+  "Italy",
+  "Japan",
+  "Malaysia",
+  "Netherlands",
+  "New Zealand",
+  "Norway",
+  "Singapore",
+  "South Korea",
+  "Spain",
+  "Sweden",
+  "Switzerland",
+  "Taiwan",
+  "Thailand",
+  "United Kingdom",
+  "United States",
+  "Vietnam",
+];
+
+const FIELD_OF_STUDY_OPTIONS = [
+  "Agriculture",
+  "Architecture",
+  "Artificial Intelligence",
+  "Biology",
+  "Biomedical Engineering",
+  "Biotechnology",
+  "Business Administration",
+  "Chemical Engineering",
+  "Chemistry",
+  "Civil Engineering",
+  "Communication",
+  "Computer Engineering",
+  "Computer Science",
+  "Data Science",
+  "Dentistry",
+  "Economics",
+  "Education",
+  "Electrical Engineering",
+  "Environmental Science",
+  "Finance",
+  "Food Science",
+  "International Relations",
+  "Journalism",
+  "Law",
+  "Linguistics",
+  "Marketing",
+  "Mathematics",
+  "Mechanical Engineering",
+  "Medicine",
+  "Nursing",
+  "Pharmacy",
+  "Physics",
+  "Political Science",
+  "Psychology",
+  "Public Health",
+  "Robotics",
+  "Social Work",
+  "Sociology",
+  "Software Engineering",
+  "Statistics",
+];
+
+function parseMultiValue(value?: string | null) {
+  if (!value) return [];
+  return Array.from(
+    new Set(
+      value
+        .split(",")
+        .map((item) => item.trim())
+      .filter(Boolean)
+    )
+  );
+}
+
+function parseTuitionWaiver(value?: string | null) {
+  const raw = (value ?? "").trim();
+  if (!raw || /^full$/i.test(raw)) {
+    return { type: "FULL" as const, details: "" };
+  }
+
+  const partialMatch = raw.match(/^partial\s*[:\-]?\s*(.*)$/i);
+  if (partialMatch) {
+    return { type: "PARTIAL" as const, details: (partialMatch[1] ?? "").trim() };
+  }
+
+  return { type: "PARTIAL" as const, details: raw };
+}
+
+function parseImageUrls(value?: string | null) {
+  const raw = (value ?? "").trim();
+  if (!raw) return [];
+
+  try {
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) {
+      return Array.from(
+        new Set(
+          parsed
+            .map((item) => String(item || "").trim())
+            .filter(Boolean)
+        )
+      );
+    }
+  } catch {
+    // Fallback to plain string parsing.
+  }
+
+  if (raw.includes(",")) {
+    return Array.from(
+      new Set(
+        raw
+          .split(",")
+          .map((item) => item.trim())
+          .filter(Boolean)
+      )
+    );
+  }
+
+  return [raw];
+}
+
+function serializeImageUrls(urls: string[]) {
+  const cleanUrls = Array.from(new Set(urls.map((url) => url.trim()).filter(Boolean)));
+  if (cleanUrls.length === 0) return null;
+  if (cleanUrls.length === 1) return cleanUrls[0];
+  return JSON.stringify(cleanUrls);
+}
+
+function getPrimaryImageUrl(value?: string | null) {
+  return parseImageUrls(value)[0] || "";
+}
+
+const SCHOLARSHIP_IMAGE_BUCKET =
+  (import.meta.env.VITE_SUPABASE_STORAGE_BUCKET as string | undefined) ||
+  "scholarship-images";
+const MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024;
 
 // ─── Sidebar Nav Items ───────────────────────
 
@@ -128,10 +281,200 @@ export function Admin() {
   const [error, setError] = useState("");
   const [isCreateScholarshipOpen, setIsCreateScholarshipOpen] = useState(false);
   const [editingScholarship, setEditingScholarship] = useState<any>(null);
+  const [createImageUrls, setCreateImageUrls] = useState<string[]>([]);
+  const [createImageUrlInput, setCreateImageUrlInput] = useState("");
+  const [createImageUploading, setCreateImageUploading] = useState(false);
+  const [createTuitionWaiverType, setCreateTuitionWaiverType] =
+    useState<"FULL" | "PARTIAL">("FULL");
+  const [createTuitionWaiverDetails, setCreateTuitionWaiverDetails] = useState("");
+  const [createHasMonthlyStipend, setCreateHasMonthlyStipend] =
+    useState<"YES" | "NO">("NO");
+  const [createMonthlyStipendText, setCreateMonthlyStipendText] = useState("");
+  const [createHasApplicationFee, setCreateHasApplicationFee] =
+    useState<"YES" | "NO">("NO");
+  const [createApplicationFeeText, setCreateApplicationFeeText] = useState("");
+  const [createHasFlightTicket, setCreateHasFlightTicket] =
+    useState<"YES" | "NO">("NO");
+  const [createFlightTicketText, setCreateFlightTicketText] = useState("");
+  const [createSelectedCountries, setCreateSelectedCountries] = useState<string[]>([]);
+  const [createCountrySelection, setCreateCountrySelection] = useState("");
+  const [createSelectedFields, setCreateSelectedFields] = useState<string[]>([]);
+  const [createFieldSelection, setCreateFieldSelection] = useState("");
+  const [editHasMonthlyStipend, setEditHasMonthlyStipend] =
+    useState<"YES" | "NO">("NO");
+  const [editMonthlyStipendText, setEditMonthlyStipendText] = useState("");
+  const [editHasApplicationFee, setEditHasApplicationFee] =
+    useState<"YES" | "NO">("NO");
+  const [editApplicationFeeText, setEditApplicationFeeText] = useState("");
+  const [editHasFlightTicket, setEditHasFlightTicket] =
+    useState<"YES" | "NO">("NO");
+  const [editFlightTicketText, setEditFlightTicketText] = useState("");
+  const [editSelectedCountries, setEditSelectedCountries] = useState<string[]>([]);
+  const [editCountrySelection, setEditCountrySelection] = useState("");
+  const [editSelectedFields, setEditSelectedFields] = useState<string[]>([]);
+  const [editFieldSelection, setEditFieldSelection] = useState("");
+  const [editImageUrls, setEditImageUrls] = useState<string[]>([]);
+  const [editImageUrlInput, setEditImageUrlInput] = useState("");
+  const [editImageUploading, setEditImageUploading] = useState(false);
+  const [editTuitionWaiverType, setEditTuitionWaiverType] =
+    useState<"FULL" | "PARTIAL">("FULL");
+  const [editTuitionWaiverDetails, setEditTuitionWaiverDetails] = useState("");
   const [scholarshipSearchTerm, setScholarshipSearchTerm] = useState("");
   const [scholarshipCountry, setScholarshipCountry] = useState("all");
   const [scholarshipType, setScholarshipType] = useState("all");
   const [scholarshipSortBy, setScholarshipSortBy] = useState("applicationDeadLine");
+
+  const resetCreateScholarshipFormState = () => {
+    setCreateImageUrls([]);
+    setCreateImageUrlInput("");
+    setCreateImageUploading(false);
+    setCreateTuitionWaiverType("FULL");
+    setCreateTuitionWaiverDetails("");
+    setCreateHasMonthlyStipend("NO");
+    setCreateMonthlyStipendText("");
+    setCreateHasApplicationFee("NO");
+    setCreateApplicationFeeText("");
+    setCreateHasFlightTicket("NO");
+    setCreateFlightTicketText("");
+    setCreateSelectedCountries([]);
+    setCreateCountrySelection("");
+    setCreateSelectedFields([]);
+    setCreateFieldSelection("");
+  };
+
+  const addImageUrlManually = (mode: "create" | "edit") => {
+    const inputValue = mode === "create" ? createImageUrlInput : editImageUrlInput;
+    const url = inputValue.trim();
+    if (!url) return;
+
+    const isHttp = /^https?:\/\//i.test(url);
+    if (!isHttp) {
+      alert("Please enter a valid image URL starting with http:// or https://");
+      return;
+    }
+
+    if (mode === "create") {
+      setCreateImageUrls((prev) => (prev.includes(url) ? prev : [...prev, url]));
+      setCreateImageUrlInput("");
+    } else {
+      setEditImageUrls((prev) => (prev.includes(url) ? prev : [...prev, url]));
+      setEditImageUrlInput("");
+    }
+  };
+
+  const removeImageUrl = (mode: "create" | "edit", urlToRemove: string) => {
+    if (mode === "create") {
+      setCreateImageUrls((prev) => prev.filter((url) => url !== urlToRemove));
+    } else {
+      setEditImageUrls((prev) => prev.filter((url) => url !== urlToRemove));
+    }
+  };
+
+  const uploadScholarshipImages = async (
+    files: File[],
+    mode: "create" | "edit"
+  ) => {
+    if (files.length === 0) return;
+
+    for (const file of files) {
+      if (!file.type.startsWith("image/")) {
+        alert("Please upload only image files.");
+        return;
+      }
+      if (file.size > MAX_IMAGE_SIZE_BYTES) {
+        alert(`"${file.name}" is too large. Each image must be 5MB or less.`);
+        return;
+      }
+    }
+
+    if (mode === "create") {
+      setCreateImageUploading(true);
+    } else {
+      setEditImageUploading(true);
+    }
+
+    try {
+      const uploadTasks = files.map(async (file, index) => {
+        const extension = file.name.split(".").pop()?.toLowerCase() || "jpg";
+        const filePath = `scholarships/${Date.now()}-${index}-${Math.random()
+          .toString(36)
+          .slice(2, 10)}.${extension}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from(SCHOLARSHIP_IMAGE_BUCKET)
+          .upload(filePath, file, {
+            cacheControl: "3600",
+            upsert: false,
+          });
+
+        if (uploadError) throw uploadError;
+
+        const { data } = supabase.storage
+          .from(SCHOLARSHIP_IMAGE_BUCKET)
+          .getPublicUrl(filePath);
+
+        return data.publicUrl;
+      });
+
+      const results = await Promise.allSettled(uploadTasks);
+      const uploadedUrls = results
+        .filter((result): result is PromiseFulfilledResult<string> => result.status === "fulfilled")
+        .map((result) => result.value)
+        .filter(Boolean);
+      const errors = results
+        .filter((result): result is PromiseRejectedResult => result.status === "rejected")
+        .map((result) => String(result.reason?.message || result.reason || ""));
+
+      if (uploadedUrls.length > 0) {
+        if (mode === "create") {
+          setCreateImageUrls((prev) => Array.from(new Set([...prev, ...uploadedUrls])));
+        } else {
+          setEditImageUrls((prev) => Array.from(new Set([...prev, ...uploadedUrls])));
+        }
+      }
+
+      if (errors.length > 0) {
+        const hasMissingBucketError = errors.some((message) =>
+          message.toLowerCase().includes("bucket not found")
+        );
+        if (hasMissingBucketError) {
+          alert(
+            `Bucket "${SCHOLARSHIP_IMAGE_BUCKET}" not found. Create it in Supabase Storage or change VITE_SUPABASE_STORAGE_BUCKET.`
+          );
+          return;
+        }
+
+        const hasRlsError = errors.some((message) =>
+          message.toLowerCase().includes("row-level security")
+        );
+        if (hasRlsError) {
+          alert("Upload blocked by Supabase Storage RLS policy. Please update bucket policies.");
+          return;
+        }
+
+        alert(`Some uploads failed. Uploaded ${uploadedUrls.length} of ${files.length} images.`);
+      }
+    } catch (err: any) {
+      console.error("Failed to upload scholarship images:", err);
+      const message = String(err?.message || "");
+      if (message.toLowerCase().includes("bucket not found")) {
+        alert(
+          `Bucket "${SCHOLARSHIP_IMAGE_BUCKET}" not found. Create it in Supabase Storage or change VITE_SUPABASE_STORAGE_BUCKET.`
+        );
+        return;
+      }
+      alert(
+        message ||
+          "Image upload failed. Please check storage bucket policy or paste image URL manually."
+      );
+    } finally {
+      if (mode === "create") {
+        setCreateImageUploading(false);
+      } else {
+        setEditImageUploading(false);
+      }
+    }
+  };
 
 
   const handleSignOut = async () => {
@@ -239,6 +582,71 @@ export function Admin() {
         .finally(() => setIsLoadingApplications(false));
     }
   }, [activeSection]);
+
+  useEffect(() => {
+    if (!editingScholarship) {
+      setEditImageUrls([]);
+      setEditImageUrlInput("");
+      setEditImageUploading(false);
+      setEditTuitionWaiverType("FULL");
+      setEditTuitionWaiverDetails("");
+      setEditHasMonthlyStipend("NO");
+      setEditMonthlyStipendText("");
+      setEditHasApplicationFee("NO");
+      setEditApplicationFeeText("");
+      setEditHasFlightTicket("NO");
+      setEditFlightTicketText("");
+      setEditSelectedCountries([]);
+      setEditCountrySelection("");
+      setEditSelectedFields([]);
+      setEditFieldSelection("");
+      return;
+    }
+
+    setEditImageUrls(parseImageUrls(editingScholarship.imageUrl));
+    setEditImageUrlInput("");
+    setEditImageUploading(false);
+
+    const tuitionWaiver = parseTuitionWaiver(editingScholarship.tuitionWaiver);
+    setEditTuitionWaiverType(tuitionWaiver.type);
+    setEditTuitionWaiverDetails(tuitionWaiver.details);
+
+    if (editingScholarship.monthlyStipend) {
+      setEditHasMonthlyStipend("YES");
+      setEditMonthlyStipendText(String(editingScholarship.monthlyStipend));
+    } else {
+      setEditHasMonthlyStipend("NO");
+      setEditMonthlyStipendText("");
+    }
+
+    if (editingScholarship.applicationFee) {
+      setEditHasApplicationFee("YES");
+      setEditApplicationFeeText(String(editingScholarship.applicationFee));
+    } else {
+      setEditHasApplicationFee("NO");
+      setEditApplicationFeeText("");
+    }
+
+    if (editingScholarship.flightTicket) {
+      setEditHasFlightTicket("YES");
+      setEditFlightTicketText(String(editingScholarship.flightTicket));
+    } else {
+      setEditHasFlightTicket("NO");
+      setEditFlightTicketText("");
+    }
+
+    const countries = parseMultiValue(editingScholarship.country);
+    setEditSelectedCountries(countries);
+    setEditCountrySelection(
+      COUNTRY_OPTIONS.find((country) => !countries.includes(country)) || ""
+    );
+
+    const fields = parseMultiValue(editingScholarship.fieldOfStudy);
+    setEditSelectedFields(fields);
+    setEditFieldSelection(
+      FIELD_OF_STUDY_OPTIONS.find((field) => !fields.includes(field)) || ""
+    );
+  }, [editingScholarship]);
 
   // ─── Render ────────────────────────────────
 
@@ -529,7 +937,12 @@ export function Admin() {
                 <div />
                 <Dialog
                   open={isCreateScholarshipOpen}
-                  onOpenChange={setIsCreateScholarshipOpen}
+                  onOpenChange={(open) => {
+                    setIsCreateScholarshipOpen(open);
+                    if (!open) {
+                      resetCreateScholarshipFormState();
+                    }
+                  }}
                 >
                   <DialogTrigger asChild>
                     <Button>
@@ -549,20 +962,53 @@ export function Admin() {
                         e.preventDefault();
                         const form = e.currentTarget;
                         const fd = new FormData(form);
+                        const description =
+                          ((fd.get("description") as string | null) ?? "").trim();
+                        if (createSelectedCountries.length === 0) {
+                          alert("Please select at least one country.");
+                          return;
+                        }
+                        if (createSelectedFields.length === 0) {
+                          alert("Please select at least one field of study.");
+                          return;
+                        }
+                        if (
+                          createTuitionWaiverType === "PARTIAL" &&
+                          !createTuitionWaiverDetails.trim()
+                        ) {
+                          alert("Please add tuition waiver details for Partial option.");
+                          return;
+                        }
+                        const monthlyStipend =
+                          createHasMonthlyStipend === "YES"
+                            ? createMonthlyStipendText.trim()
+                            : "";
+                        const tuitionWaiver =
+                          createTuitionWaiverType === "FULL"
+                            ? "Full"
+                            : `Partial: ${createTuitionWaiverDetails.trim()}`;
+                        const applicationFee =
+                          createHasApplicationFee === "YES"
+                            ? createApplicationFeeText.trim()
+                            : "";
+                        const flightTicket =
+                          createHasFlightTicket === "YES"
+                            ? createFlightTicketText.trim()
+                            : "";
                         const data: any = {
                           title: fd.get("title") as string,
                           provider: fd.get("provider") as string,
-                          country: fd.get("country") as string,
-                          // description: fd.get("description") as string, // Removed
-                          // value: fd.get("value") as string, // Removed
+                          country: createSelectedCountries.join(", "),
+                          imageUrl: serializeImageUrls(createImageUrls),
+                          description: description || undefined,
                           level: (fd.get("level") as string) || "undergraduate",
-                          fieldOfStudy: fd.get("fieldOfStudy") as string,
+                          fieldOfStudy: createSelectedFields.join(", "),
                           type: (fd.get("type") as string) || "GOVERNMENT",
                           status: (fd.get("status") as string) || "DRAFT",
-                          tuitionWaiver: fd.get("tuitionWaiver") as string,
-                          monthlyStipend: fd.get("monthlyStipend") as string,
-                          applicationFee: fd.get("applicationFee") as string,
-                          flightTicket: fd.get("flightTicket") as string,
+                          tuitionWaiver,
+                          monthlyStipend: monthlyStipend || null,
+                          applicationFee: applicationFee || null,
+                          flightTicket: flightTicket || null,
                           maxAge: Number(fd.get("maxAge")) || null,
                           featured: false,
                         };
@@ -579,6 +1025,7 @@ export function Admin() {
                           const res = await api.post<any>("/admin/scholarships", data);
                           if (res.data) await fetchScholarships();
                           setIsCreateScholarshipOpen(false);
+                          resetCreateScholarshipFormState();
                           form.reset();
                         } catch (err: any) {
                           alert(
@@ -599,44 +1046,326 @@ export function Admin() {
                           <Input id="provider" name="provider" placeholder="Korean Government" required />
                         </div>
                       </div>
-                      {/* Removed Value and Description Inputs */}
+                      <div className="space-y-2">
+                        <Label htmlFor="create-image-upload">Scholarship Photo</Label>
+                        <div className="flex flex-col gap-2 md:flex-row md:items-center">
+                          <Input
+                            id="create-image-upload"
+                            type="file"
+                            accept="image/*"
+                            multiple
+                            onChange={(e) => {
+                              const files = Array.from(e.target.files || []);
+                              if (files.length > 0) {
+                                void uploadScholarshipImages(files, "create");
+                              }
+                              e.target.value = "";
+                            }}
+                            disabled={createImageUploading}
+                          />
+                        </div>
+                        <div className="flex flex-col gap-2 md:flex-row">
+                          <Input
+                            value={createImageUrlInput}
+                            onChange={(e) => setCreateImageUrlInput(e.target.value)}
+                            placeholder="Or paste image URL"
+                          />
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => addImageUrlManually("create")}
+                            disabled={!createImageUrlInput.trim() || createImageUploading}
+                          >
+                            Add URL
+                          </Button>
+                        </div>
+                        {createImageUrls.length > 0 ? (
+                          <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
+                            {createImageUrls.map((url) => (
+                              <div
+                                key={url}
+                                className="relative h-28 overflow-hidden rounded-md border border-border"
+                              >
+                                <ImageWithFallback
+                                  src={url}
+                                  alt="Scholarship preview"
+                                  className="h-full w-full object-cover"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => removeImageUrl("create", url)}
+                                  className="absolute right-2 top-2 rounded bg-black/70 px-2 py-1 text-xs text-white"
+                                >
+                                  Remove
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="text-xs text-muted-foreground">
+                            You can upload one or multiple photos.
+                          </p>
+                        )}
+                        <p className="text-xs text-muted-foreground">
+                          {createImageUploading
+                            ? "Uploading image(s)..."
+                            : "Accepted: JPG, PNG, WEBP up to 5MB."}
+                        </p>
+                      </div>
+                      <div>
+                        <Label htmlFor="description">Description</Label>
+                        <Textarea
+                          id="description"
+                          name="description"
+                          placeholder="Write scholarship details, eligibility overview, and key notes..."
+                        />
+                      </div>
 
                       {/* Financial Support Section */}
                       <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <Label htmlFor="tuitionWaiver">Tuition Waiver</Label>
-                          <Input id="tuitionWaiver" name="tuitionWaiver" placeholder="e.g. 100%, 50%..." />
+                        <div className="space-y-2">
+                          <Label htmlFor="tuitionWaiverOption">Tuition Waiver</Label>
+                          <select
+                            id="tuitionWaiverOption"
+                            value={createTuitionWaiverType}
+                            onChange={(e) => {
+                              const value = e.target.value as "FULL" | "PARTIAL";
+                              setCreateTuitionWaiverType(value);
+                              if (value === "FULL") {
+                                setCreateTuitionWaiverDetails("");
+                              }
+                            }}
+                            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                          >
+                            <option value="FULL">Full</option>
+                            <option value="PARTIAL">Partial</option>
+                          </select>
                         </div>
-                        <div>
-                          <Label htmlFor="monthlyStipend">Monthly Stipend</Label>
-                          <Input id="monthlyStipend" name="monthlyStipend" placeholder="e.g. $1000" />
+                        <div className="space-y-2">
+                          {createTuitionWaiverType === "PARTIAL" && (
+                            <>
+                              <Label htmlFor="tuitionWaiverDetails">More Details</Label>
+                              <Input
+                                id="tuitionWaiverDetails"
+                                value={createTuitionWaiverDetails}
+                                onChange={(e) => setCreateTuitionWaiverDetails(e.target.value)}
+                                placeholder="e.g. 50% tuition covered"
+                                required
+                              />
+                            </>
+                          )}
                         </div>
                       </div>
-
                       <div className="grid grid-cols-2 gap-4">
                         <div>
-                          <Label htmlFor="applicationFee">Application Fee</Label>
-                          <Input id="applicationFee" name="applicationFee" placeholder="e.g. $50 or Waived" />
-                        </div>
-                        <div>
-                          <Label htmlFor="flightTicket">Flight Ticket</Label>
-                          <Input id="flightTicket" name="flightTicket" placeholder="e.g. Covered, One-way..." />
+                          <Label htmlFor="monthlyStipendOption">Monthly Stipend</Label>
+                          <select
+                            id="monthlyStipendOption"
+                            value={createHasMonthlyStipend}
+                            onChange={(e) => {
+                              const value = e.target.value as "YES" | "NO";
+                              setCreateHasMonthlyStipend(value);
+                              if (value === "NO") setCreateMonthlyStipendText("");
+                            }}
+                            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                          >
+                            <option value="NO">No</option>
+                            <option value="YES">Yes</option>
+                          </select>
                         </div>
                       </div>
-
-                      <div className="grid grid-cols-2 gap-4">
+                      {createHasMonthlyStipend === "YES" && (
                         <div>
-                          <Label htmlFor="country">Country *</Label>
-                          <Input id="country" name="country" placeholder="South Korea" required />
-                        </div>
-                        <div>
-                          <Label htmlFor="fieldOfStudy">Field of Study *</Label>
+                          <Label htmlFor="monthlyStipendValue">Monthly Stipend Details</Label>
                           <Input
-                            id="fieldOfStudy"
-                            name="fieldOfStudy"
-                            placeholder="Computer Science, Engineering"
+                            id="monthlyStipendValue"
+                            value={createMonthlyStipendText}
+                            onChange={(e) => setCreateMonthlyStipendText(e.target.value)}
+                            placeholder="Approximately 1,100,000 KRW"
                             required
                           />
+                        </div>
+                      )}
+
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="applicationFeeOption">Application Fee</Label>
+                          <select
+                            id="applicationFeeOption"
+                            value={createHasApplicationFee}
+                            onChange={(e) => {
+                              const value = e.target.value as "YES" | "NO";
+                              setCreateHasApplicationFee(value);
+                              if (value === "NO") setCreateApplicationFeeText("");
+                            }}
+                            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                          >
+                            <option value="NO">No</option>
+                            <option value="YES">Yes</option>
+                          </select>
+                          {createHasApplicationFee === "YES" && (
+                            <Input
+                              id="applicationFeeValue"
+                              value={createApplicationFeeText}
+                              onChange={(e) => setCreateApplicationFeeText(e.target.value)}
+                              placeholder="Approximately $50 or Waived"
+                              required
+                            />
+                          )}
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="flightTicketOption">Flight Ticket</Label>
+                          <select
+                            id="flightTicketOption"
+                            value={createHasFlightTicket}
+                            onChange={(e) => {
+                              const value = e.target.value as "YES" | "NO";
+                              setCreateHasFlightTicket(value);
+                              if (value === "NO") setCreateFlightTicketText("");
+                            }}
+                            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                          >
+                            <option value="NO">No</option>
+                            <option value="YES">Yes</option>
+                          </select>
+                          {createHasFlightTicket === "YES" && (
+                            <Input
+                              id="flightTicketValue"
+                              value={createFlightTicketText}
+                              onChange={(e) => setCreateFlightTicketText(e.target.value)}
+                              placeholder="Round trip covered by sponsor"
+                              required
+                            />
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="countrySelect">Country *</Label>
+                          <div className="flex gap-2">
+                            <select
+                              id="countrySelect"
+                              value={createCountrySelection}
+                              onChange={(e) => setCreateCountrySelection(e.target.value)}
+                              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                            >
+                              <option value="">Choose a country</option>
+                              {COUNTRY_OPTIONS.filter(
+                                (country) => !createSelectedCountries.includes(country)
+                              ).map((country) => (
+                                <option key={country} value={country}>
+                                  {country}
+                                </option>
+                              ))}
+                            </select>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              onClick={() => {
+                                if (!createCountrySelection) return;
+                                setCreateSelectedCountries((prev) =>
+                                  prev.includes(createCountrySelection)
+                                    ? prev
+                                    : [...prev, createCountrySelection]
+                                );
+                                setCreateCountrySelection("");
+                              }}
+                              disabled={!createCountrySelection}
+                            >
+                              Select more
+                            </Button>
+                          </div>
+                          {createSelectedCountries.length > 0 ? (
+                            <div className="flex flex-wrap gap-2">
+                              {createSelectedCountries.map((country) => (
+                                <span
+                                  key={country}
+                                  className="inline-flex items-center gap-2 rounded-full border border-gray-300 px-3 py-1 text-xs"
+                                >
+                                  {country}
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      setCreateSelectedCountries((prev) =>
+                                        prev.filter((item) => item !== country)
+                                      )
+                                    }
+                                    className="text-gray-500 hover:text-black"
+                                  >
+                                    x
+                                  </button>
+                                </span>
+                              ))}
+                            </div>
+                          ) : (
+                            <p className="text-xs text-muted-foreground">
+                              Select at least one country.
+                            </p>
+                          )}
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="fieldOfStudySelect">Field of Study *</Label>
+                          <div className="flex gap-2">
+                            <select
+                              id="fieldOfStudySelect"
+                              value={createFieldSelection}
+                              onChange={(e) => setCreateFieldSelection(e.target.value)}
+                              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                            >
+                              <option value="">Choose a major</option>
+                              {FIELD_OF_STUDY_OPTIONS.filter(
+                                (field) => !createSelectedFields.includes(field)
+                              ).map((field) => (
+                                <option key={field} value={field}>
+                                  {field}
+                                </option>
+                              ))}
+                            </select>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              onClick={() => {
+                                if (!createFieldSelection) return;
+                                setCreateSelectedFields((prev) =>
+                                  prev.includes(createFieldSelection)
+                                    ? prev
+                                    : [...prev, createFieldSelection]
+                                );
+                                setCreateFieldSelection("");
+                              }}
+                              disabled={!createFieldSelection}
+                            >
+                              Select more
+                            </Button>
+                          </div>
+                          {createSelectedFields.length > 0 ? (
+                            <div className="flex flex-wrap gap-2">
+                              {createSelectedFields.map((field) => (
+                                <span
+                                  key={field}
+                                  className="inline-flex items-center gap-2 rounded-full border border-gray-300 px-3 py-1 text-xs"
+                                >
+                                  {field}
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      setCreateSelectedFields((prev) =>
+                                        prev.filter((item) => item !== field)
+                                      )
+                                    }
+                                    className="text-gray-500 hover:text-black"
+                                  >
+                                    x
+                                  </button>
+                                </span>
+                              ))}
+                            </div>
+                          ) : (
+                            <p className="text-xs text-muted-foreground">
+                              Select at least one major.
+                            </p>
+                          )}
                         </div>
                       </div>
 
@@ -739,20 +1468,53 @@ export function Admin() {
                           e.preventDefault();
                           const form = e.currentTarget;
                           const fd = new FormData(form);
+                          const description =
+                            ((fd.get("description") as string | null) ?? "").trim();
+                          if (editSelectedCountries.length === 0) {
+                            alert("Please select at least one country.");
+                            return;
+                          }
+                          if (editSelectedFields.length === 0) {
+                            alert("Please select at least one field of study.");
+                            return;
+                          }
+                          if (
+                            editTuitionWaiverType === "PARTIAL" &&
+                            !editTuitionWaiverDetails.trim()
+                          ) {
+                            alert("Please add tuition waiver details for Partial option.");
+                            return;
+                          }
+                          const monthlyStipend =
+                            editHasMonthlyStipend === "YES"
+                              ? editMonthlyStipendText.trim()
+                              : "";
+                          const tuitionWaiver =
+                            editTuitionWaiverType === "FULL"
+                              ? "Full"
+                              : `Partial: ${editTuitionWaiverDetails.trim()}`;
+                          const applicationFee =
+                            editHasApplicationFee === "YES"
+                              ? editApplicationFeeText.trim()
+                              : "";
+                          const flightTicket =
+                            editHasFlightTicket === "YES"
+                              ? editFlightTicketText.trim()
+                              : "";
                           const data: any = {
                             title: fd.get("title") as string,
                             provider: fd.get("provider") as string,
-                            country: fd.get("country") as string,
-                            // description: fd.get("description") as string, // Removed
-                            // value: fd.get("value") as string, // Removed
+                            country: editSelectedCountries.join(", "),
+                            imageUrl: serializeImageUrls(editImageUrls),
+                            description: description || undefined,
                             level: (fd.get("level") as string),
-                            fieldOfStudy: fd.get("fieldOfStudy") as string,
+                            fieldOfStudy: editSelectedFields.join(", "),
                             type: (fd.get("type") as string),
                             status: (fd.get("status") as string),
-                            tuitionWaiver: fd.get("tuitionWaiver") as string,
-                            monthlyStipend: fd.get("monthlyStipend") as string,
-                            applicationFee: fd.get("applicationFee") as string,
-                            flightTicket: fd.get("flightTicket") as string,
+                            tuitionWaiver,
+                            monthlyStipend: monthlyStipend || null,
+                            applicationFee: applicationFee || null,
+                            flightTicket: flightTicket || null,
                             maxAge: Number(fd.get("maxAge")) || null,
                           };
                           const openDate = fd.get("openDate") as string;
@@ -799,49 +1561,327 @@ export function Admin() {
                             />
                           </div>
                         </div>
-                        {/* Removed Value and Description Inputs */}
+                        <div className="space-y-2">
+                          <Label htmlFor="edit-image-upload">Scholarship Photo</Label>
+                          <div className="flex flex-col gap-2 md:flex-row md:items-center">
+                            <Input
+                              id="edit-image-upload"
+                              type="file"
+                              accept="image/*"
+                              multiple
+                              onChange={(e) => {
+                                const files = Array.from(e.target.files || []);
+                                if (files.length > 0) {
+                                  void uploadScholarshipImages(files, "edit");
+                                }
+                                e.target.value = "";
+                              }}
+                              disabled={editImageUploading}
+                            />
+                          </div>
+                          <div className="flex flex-col gap-2 md:flex-row">
+                            <Input
+                              value={editImageUrlInput}
+                              onChange={(e) => setEditImageUrlInput(e.target.value)}
+                              placeholder="Or paste image URL"
+                            />
+                            <Button
+                              type="button"
+                              variant="outline"
+                              onClick={() => addImageUrlManually("edit")}
+                              disabled={!editImageUrlInput.trim() || editImageUploading}
+                            >
+                              Add URL
+                            </Button>
+                          </div>
+                          {editImageUrls.length > 0 ? (
+                            <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
+                              {editImageUrls.map((url) => (
+                                <div
+                                  key={url}
+                                  className="relative h-28 overflow-hidden rounded-md border border-border"
+                                >
+                                  <ImageWithFallback
+                                    src={url}
+                                    alt="Scholarship preview"
+                                    className="h-full w-full object-cover"
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={() => removeImageUrl("edit", url)}
+                                    className="absolute right-2 top-2 rounded bg-black/70 px-2 py-1 text-xs text-white"
+                                  >
+                                    Remove
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <p className="text-xs text-muted-foreground">
+                              You can upload one or multiple photos.
+                            </p>
+                          )}
+                          <p className="text-xs text-muted-foreground">
+                            {editImageUploading
+                              ? "Uploading image(s)..."
+                              : "Accepted: JPG, PNG, WEBP up to 5MB."}
+                          </p>
+                        </div>
+                        <div>
+                          <Label htmlFor="edit-description">Description</Label>
+                          <Textarea
+                            id="edit-description"
+                            name="description"
+                            defaultValue={editingScholarship.description || ""}
+                            placeholder="Write scholarship details, eligibility overview, and key notes..."
+                          />
+                        </div>
 
                         {/* Financial Support Section */}
                         <div className="grid grid-cols-2 gap-4">
-                          <div>
-                            <Label htmlFor="edit-tuitionWaiver">Tuition Waiver</Label>
-                            <Input id="edit-tuitionWaiver" name="tuitionWaiver" defaultValue={editingScholarship.tuitionWaiver} placeholder="e.g. 100%" />
+                          <div className="space-y-2">
+                            <Label htmlFor="edit-tuitionWaiverOption">Tuition Waiver</Label>
+                            <select
+                              id="edit-tuitionWaiverOption"
+                              value={editTuitionWaiverType}
+                              onChange={(e) => {
+                                const value = e.target.value as "FULL" | "PARTIAL";
+                                setEditTuitionWaiverType(value);
+                                if (value === "FULL") {
+                                  setEditTuitionWaiverDetails("");
+                                }
+                              }}
+                              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                            >
+                              <option value="FULL">Full</option>
+                              <option value="PARTIAL">Partial</option>
+                            </select>
                           </div>
+                          <div className="space-y-2">
+                            {editTuitionWaiverType === "PARTIAL" && (
+                              <>
+                                <Label htmlFor="edit-tuitionWaiverDetails">More Details</Label>
+                                <Input
+                                  id="edit-tuitionWaiverDetails"
+                                  value={editTuitionWaiverDetails}
+                                  onChange={(e) => setEditTuitionWaiverDetails(e.target.value)}
+                                  placeholder="e.g. 50% tuition covered"
+                                  required
+                                />
+                              </>
+                            )}
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
                           <div>
-                            <Label htmlFor="edit-monthlyStipend">Monthly Stipend</Label>
-                            <Input id="edit-monthlyStipend" name="monthlyStipend" defaultValue={editingScholarship.monthlyStipend} placeholder="e.g. $1000" />
+                            <Label htmlFor="edit-monthlyStipendOption">Monthly Stipend</Label>
+                            <select
+                              id="edit-monthlyStipendOption"
+                              value={editHasMonthlyStipend}
+                              onChange={(e) => {
+                                const value = e.target.value as "YES" | "NO";
+                                setEditHasMonthlyStipend(value);
+                                if (value === "NO") setEditMonthlyStipendText("");
+                              }}
+                              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                            >
+                              <option value="NO">No</option>
+                              <option value="YES">Yes</option>
+                            </select>
+                          </div>
+                        </div>
+                        {editHasMonthlyStipend === "YES" && (
+                          <div>
+                            <Label htmlFor="edit-monthlyStipendValue">Monthly Stipend Details</Label>
+                            <Input
+                              id="edit-monthlyStipendValue"
+                              value={editMonthlyStipendText}
+                              onChange={(e) => setEditMonthlyStipendText(e.target.value)}
+                              placeholder="Approximately 1,100,000 KRW"
+                              required
+                            />
+                          </div>
+                        )}
+
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <Label htmlFor="edit-applicationFeeOption">Application Fee</Label>
+                            <select
+                              id="edit-applicationFeeOption"
+                              value={editHasApplicationFee}
+                              onChange={(e) => {
+                                const value = e.target.value as "YES" | "NO";
+                                setEditHasApplicationFee(value);
+                                if (value === "NO") setEditApplicationFeeText("");
+                              }}
+                              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                            >
+                              <option value="NO">No</option>
+                              <option value="YES">Yes</option>
+                            </select>
+                            {editHasApplicationFee === "YES" && (
+                              <Input
+                                id="edit-applicationFeeValue"
+                                value={editApplicationFeeText}
+                                onChange={(e) => setEditApplicationFeeText(e.target.value)}
+                                placeholder="Approximately $50 or Waived"
+                                required
+                              />
+                            )}
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="edit-flightTicketOption">Flight Ticket</Label>
+                            <select
+                              id="edit-flightTicketOption"
+                              value={editHasFlightTicket}
+                              onChange={(e) => {
+                                const value = e.target.value as "YES" | "NO";
+                                setEditHasFlightTicket(value);
+                                if (value === "NO") setEditFlightTicketText("");
+                              }}
+                              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                            >
+                              <option value="NO">No</option>
+                              <option value="YES">Yes</option>
+                            </select>
+                            {editHasFlightTicket === "YES" && (
+                              <Input
+                                id="edit-flightTicketValue"
+                                value={editFlightTicketText}
+                                onChange={(e) => setEditFlightTicketText(e.target.value)}
+                                placeholder="Round trip covered by sponsor"
+                                required
+                              />
+                            )}
                           </div>
                         </div>
 
                         <div className="grid grid-cols-2 gap-4">
-                          <div>
-                            <Label htmlFor="edit-applicationFee">Application Fee</Label>
-                            <Input id="edit-applicationFee" name="applicationFee" defaultValue={editingScholarship.applicationFee} placeholder="Waived" />
+                          <div className="space-y-2">
+                            <Label htmlFor="edit-countrySelect">Country *</Label>
+                            <div className="flex gap-2">
+                              <select
+                                id="edit-countrySelect"
+                                value={editCountrySelection}
+                                onChange={(e) => setEditCountrySelection(e.target.value)}
+                                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                              >
+                                <option value="">Choose a country</option>
+                                {COUNTRY_OPTIONS.filter(
+                                  (country) => !editSelectedCountries.includes(country)
+                                ).map((country) => (
+                                  <option key={country} value={country}>
+                                    {country}
+                                  </option>
+                                ))}
+                              </select>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() => {
+                                  if (!editCountrySelection) return;
+                                  setEditSelectedCountries((prev) =>
+                                    prev.includes(editCountrySelection)
+                                      ? prev
+                                      : [...prev, editCountrySelection]
+                                  );
+                                  setEditCountrySelection("");
+                                }}
+                                disabled={!editCountrySelection}
+                              >
+                                Select more
+                              </Button>
+                            </div>
+                            {editSelectedCountries.length > 0 ? (
+                              <div className="flex flex-wrap gap-2">
+                                {editSelectedCountries.map((country) => (
+                                  <span
+                                    key={country}
+                                    className="inline-flex items-center gap-2 rounded-full border border-gray-300 px-3 py-1 text-xs"
+                                  >
+                                    {country}
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        setEditSelectedCountries((prev) =>
+                                          prev.filter((item) => item !== country)
+                                        )
+                                      }
+                                      className="text-gray-500 hover:text-black"
+                                    >
+                                      x
+                                    </button>
+                                  </span>
+                                ))}
+                              </div>
+                            ) : (
+                              <p className="text-xs text-muted-foreground">
+                                Select at least one country.
+                              </p>
+                            )}
                           </div>
-                          <div>
-                            <Label htmlFor="edit-flightTicket">Flight Ticket</Label>
-                            <Input id="edit-flightTicket" name="flightTicket" defaultValue={editingScholarship.flightTicket} placeholder="Covered" />
-                          </div>
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-4">
-                          <div>
-                            <Label htmlFor="edit-country">Country *</Label>
-                            <Input
-                              id="edit-country"
-                              name="country"
-                              defaultValue={editingScholarship.country}
-                              required
-                            />
-                          </div>
-                          <div>
-                            <Label htmlFor="edit-fieldOfStudy">Field of Study *</Label>
-                            <Input
-                              id="edit-fieldOfStudy"
-                              name="fieldOfStudy"
-                              defaultValue={editingScholarship.fieldOfStudy}
-                              required
-                            />
+                          <div className="space-y-2">
+                            <Label htmlFor="edit-fieldOfStudySelect">Field of Study *</Label>
+                            <div className="flex gap-2">
+                              <select
+                                id="edit-fieldOfStudySelect"
+                                value={editFieldSelection}
+                                onChange={(e) => setEditFieldSelection(e.target.value)}
+                                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                              >
+                                <option value="">Choose a major</option>
+                                {FIELD_OF_STUDY_OPTIONS.filter(
+                                  (field) => !editSelectedFields.includes(field)
+                                ).map((field) => (
+                                  <option key={field} value={field}>
+                                    {field}
+                                  </option>
+                                ))}
+                              </select>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() => {
+                                  if (!editFieldSelection) return;
+                                  setEditSelectedFields((prev) =>
+                                    prev.includes(editFieldSelection)
+                                      ? prev
+                                      : [...prev, editFieldSelection]
+                                  );
+                                  setEditFieldSelection("");
+                                }}
+                                disabled={!editFieldSelection}
+                              >
+                                Select more
+                              </Button>
+                            </div>
+                            {editSelectedFields.length > 0 ? (
+                              <div className="flex flex-wrap gap-2">
+                                {editSelectedFields.map((field) => (
+                                  <span
+                                    key={field}
+                                    className="inline-flex items-center gap-2 rounded-full border border-gray-300 px-3 py-1 text-xs"
+                                  >
+                                    {field}
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        setEditSelectedFields((prev) =>
+                                          prev.filter((item) => item !== field)
+                                        )
+                                      }
+                                      className="text-gray-500 hover:text-black"
+                                    >
+                                      x
+                                    </button>
+                                  </span>
+                                ))}
+                              </div>
+                            ) : (
+                              <p className="text-xs text-muted-foreground">
+                                Select at least one major.
+                              </p>
+                            )}
                           </div>
                         </div>
 
@@ -1044,6 +2084,16 @@ export function Admin() {
                             </Badge>
                           ) : null}
                         </div>
+
+                        {getPrimaryImageUrl(s.imageUrl) ? (
+                          <div className="h-40 overflow-hidden rounded-md border border-border">
+                            <ImageWithFallback
+                              src={getPrimaryImageUrl(s.imageUrl)}
+                              alt={s.title}
+                              className="h-full w-full object-cover"
+                            />
+                          </div>
+                        ) : null}
 
                         <div>
                           <h3 className="font-semibold text-lg leading-tight line-clamp-2">

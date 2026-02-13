@@ -21,6 +21,7 @@ const createScholarshipSchema = z.object({
   title: z.string().min(1).max(300),
   provider: z.string().min(1).max(200),
   country: z.string().min(1).max(200),
+  imageUrl: z.string().max(20000).nullable().optional(),
   level: z.string().min(1).max(100),
   status: z.enum(["OPEN", "CLOSED", "UPCOMING", "DRAFT"]).optional(),
   duration: z.string().nullable().optional(),

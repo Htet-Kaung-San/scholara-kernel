@@ -1,17 +1,19 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router";
-import { Card, CardContent } from "./ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
 import { Input } from "./ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
-import { Search, Clock, MapPin, DollarSign, SlidersHorizontal } from "lucide-react";
+import { Search, Clock, SlidersHorizontal, Users } from "lucide-react";
+import { ImageWithFallback } from "./figma/ImageWithFallback";
 import { api } from "@/lib/api";
 
 interface Scholarship {
   id: string;
   title: string;
   provider: string;
+  imageUrl?: string | null;
   country: string;
   status: string;
   type: string;
@@ -23,6 +25,29 @@ interface Scholarship {
   deadline?: string | null;
   featured: boolean;
   _count?: { applications: number };
+}
+
+function parseImageUrls(value?: string | null) {
+  const raw = (value ?? "").trim();
+  if (!raw) return [];
+
+  try {
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) {
+      return parsed.map((item) => String(item || "").trim()).filter(Boolean);
+    }
+  } catch {
+    // Keep compatibility with legacy single-string URL data.
+  }
+
+  if (raw.includes(",")) {
+    return raw
+      .split(",")
+      .map((item) => item.trim())
+      .filter(Boolean);
+  }
+
+  return [raw];
 }
 
 export function AllScholarships() {
@@ -70,18 +95,38 @@ export function AllScholarships() {
 
   const getBadgeVariant = (status: string) => {
     switch (status) {
-      case "OPEN": return "default" as const;
-      case "CLOSED": return "secondary" as const;
-      case "UPCOMING": return "outline" as const;
-      default: return "secondary" as const;
+      case "CLOSED":
+        return "bg-red-100 text-red-800 hover:bg-red-100 border-red-200";
+      case "UPCOMING":
+        return "bg-yellow-100 text-yellow-800 hover:bg-yellow-100 border-yellow-200";
+      case "OPEN":
+        return "bg-green-100 text-green-800 hover:bg-green-100 border-green-200";
+      default:
+        return "bg-background/90 text-foreground";
     }
   };
 
-  const formatDate = (dateStr?: string | null) => {
-    if (!dateStr) return "No deadline";
+  const getStatusLabel = (status: string) => {
+    if (status === "OPEN") return "Open";
+    if (status === "CLOSED") return "Closed";
+    if (status === "UPCOMING") return "Upcoming";
+    return status || "Unknown";
+  };
+
+  const getDurationLabel = (scholarship: Scholarship) => {
+    if (scholarship.duration?.trim()) return scholarship.duration;
+
+    const dateStr = scholarship.applicationDeadLine ?? scholarship.deadline;
+    if (!dateStr) return "Flexible";
+
     const parsed = new Date(dateStr);
-    if (Number.isNaN(parsed.getTime())) return "No deadline";
-    return parsed.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+    if (Number.isNaN(parsed.getTime())) return "Flexible";
+
+    const now = new Date();
+    const diffMs = parsed.getTime() - now.getTime();
+    const weeks = Math.ceil(diffMs / (1000 * 60 * 60 * 24 * 7));
+    if (weeks <= 0) return "Closed";
+    return `${weeks} ${weeks === 1 ? "week" : "weeks"}`;
   };
 
   return (
@@ -143,14 +188,17 @@ export function AllScholarships() {
 
         {/* Results */}
         {isLoading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {[...Array(6)].map((_, i) => (
-              <Card key={i} className="animate-pulse">
+              <Card key={i} className="animate-pulse overflow-hidden">
+                <div className="h-48 bg-muted" />
                 <CardContent className="p-6">
-                  <div className="h-4 bg-muted rounded w-3/4 mb-4" />
-                  <div className="h-3 bg-muted rounded w-1/2 mb-6" />
-                  <div className="h-3 bg-muted rounded w-full mb-2" />
-                  <div className="h-3 bg-muted rounded w-2/3" />
+                  <div className="h-7 bg-muted rounded w-2/3 mb-4" />
+                  <div className="flex justify-between mb-4">
+                    <div className="h-4 bg-muted rounded w-20" />
+                    <div className="h-4 bg-muted rounded w-24" />
+                  </div>
+                  <div className="h-10 bg-muted rounded-md w-full" />
                 </CardContent>
               </Card>
             ))}
@@ -165,51 +213,61 @@ export function AllScholarships() {
           </Card>
         ) : (
           <>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {scholarships.map((scholarship) => (
-                <Card
-                  key={scholarship.id}
-                  className="hover:shadow-lg transition-shadow cursor-pointer"
-                  onClick={() => navigate(`/scholarships/${scholarship.id}`)}
-                >
-                  <CardContent className="p-6">
-                    <div className="flex items-center justify-between mb-3">
-                      <Badge variant={getBadgeVariant(scholarship.status)}>
-                        {scholarship.status}
-                      </Badge>
-                      {scholarship.featured && (
-                        <Badge variant="outline" className="bg-yellow-50 text-yellow-700">
-                          ⭐ Featured
-                        </Badge>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+              {scholarships.map((scholarship) => {
+                const primaryImage = parseImageUrls(scholarship.imageUrl)[0];
+                return (
+                  <Card
+                    key={scholarship.id}
+                    className="group hover:shadow-xl transition-all duration-300 overflow-hidden"
+                    onClick={() => navigate(`/scholarships/${scholarship.id}`)}
+                  >
+                    <div className="relative overflow-hidden">
+                      {primaryImage ? (
+                        <ImageWithFallback
+                          src={primaryImage}
+                          alt={scholarship.title}
+                          className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-300"
+                        />
+                      ) : (
+                        <div className="w-full h-48 bg-gradient-to-br from-slate-200 to-slate-300" />
                       )}
+                      <Badge
+                        className={`absolute top-4 left-4 ${getBadgeVariant(scholarship.status)}`}
+                      >
+                        {getStatusLabel(scholarship.status)}
+                      </Badge>
                     </div>
-                    <h3 className="font-semibold text-lg mb-1 line-clamp-2">{scholarship.title}</h3>
-                    <p className="text-sm text-muted-foreground mb-4">{scholarship.provider}</p>
 
-                    <div className="space-y-2 text-sm">
-                      <div className="flex items-center gap-2 text-muted-foreground">
-                        <MapPin className="h-4 w-4" />
-                        <span>{scholarship.country}</span>
+                    <CardHeader>
+                      <CardTitle className="line-clamp-2">
+                        {scholarship.title}
+                      </CardTitle>
+                    </CardHeader>
+
+                    <CardContent className="pt-0">
+                      <div className="flex items-center justify-between text-sm text-muted-foreground mb-4">
+                        <div className="flex items-center space-x-1">
+                          <Clock className="h-4 w-4" />
+                          <span>{getDurationLabel(scholarship)}</span>
+                        </div>
+                        <div className="flex items-center space-x-1">
+                          <Users className="h-4 w-4" />
+                          <span>{(scholarship._count?.applications ?? 0).toLocaleString()} students</span>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-2 text-muted-foreground">
-                        <DollarSign className="h-4 w-4" />
-                        <span>
-                          {scholarship.tuitionWaiver ||
-                            scholarship.monthlyStipend ||
-                            scholarship.duration ||
-                            "See details"}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-2 text-muted-foreground">
-                        <Clock className="h-4 w-4" />
-                        <span>
-                          Deadline: {formatDate(scholarship.applicationDeadLine ?? scholarship.deadline)}
-                        </span>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+
+                      <Button
+                        type="button"
+                        className="w-full bg-black text-white hover:bg-gray-800"
+                        variant="outline"
+                      >
+                        Apply Now
+                      </Button>
+                    </CardContent>
+                  </Card>
+                );
+              })}
             </div>
 
             {/* Pagination */}

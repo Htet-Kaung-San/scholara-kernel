@@ -62,9 +62,20 @@ async function request<T>(
         headers,
     });
 
-    const json: ApiResponse<T> = await response.json();
+    let json: ApiResponse<T>;
+    try {
+        json = await response.json();
+    } catch {
+        json = {
+            success: false,
+            error: response.statusText || "Unexpected server response",
+        };
+    }
 
     if (!response.ok || !json.success) {
+        if (response.status === 502 && typeof window !== "undefined") {
+            window.location.href = "/502";
+        }
         throw new ApiError(
             json.error || "An unexpected error occurred",
             response.status,

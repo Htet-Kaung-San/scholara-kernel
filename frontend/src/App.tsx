@@ -8,8 +8,6 @@ import { Header } from "@/components/Header";
 import { Hero } from "@/components/Hero";
 import { Features } from "@/components/Features";
 import { Courses } from "@/components/Courses";
-import { Testimonials } from "@/components/Testimonials";
-import { CTA } from "@/components/CTA";
 import { Footer } from "@/components/Footer";
 import { About } from "@/components/About";
 import { Pricing } from "@/components/Pricing";
@@ -24,19 +22,25 @@ import { Admin } from "@/components/Admin";
 import { TermsOfService } from "@/components/TermsOfService";
 import { PrivacyPolicy } from "@/components/PrivacyPolicy";
 import { ForgotPassword } from "@/components/ForgotPassword";
+import { ResetPassword } from "@/components/ResetPassword";
+import { NotFoundPage } from "@/components/NotFoundPage";
+import { BadGatewayPage } from "@/components/BadGatewayPage";
 
 // ─── Pages Without Header/Footer ────────────
-const AUTH_ROUTES = ["/signin", "/signup", "/onboarding", "/forgot-password"];
+const AUTH_ROUTES = ["/signin", "/signup", "/onboarding", "/forgot-password", "/reset-password"];
 const NO_FOOTER_ROUTES = [
   "/signin",
   "/signup",
   "/onboarding",
   "/forgot-password",
+  "/reset-password",
   "/profile",
   "/notifications",
   "/admin",
   "/pricing",
   "/scholarships",
+  "/404",
+  "/502",
 ];
 
 function HomePage() {
@@ -45,8 +49,6 @@ function HomePage() {
       <Hero />
       <Features />
       <Courses />
-      <Testimonials />
-      <CTA />
     </main>
   );
 }
@@ -57,15 +59,17 @@ function AppLayout() {
 
   const isAuthRoute = AUTH_ROUTES.includes(pathname);
   const isAdminRoute = pathname.startsWith("/admin");
+  const isErrorRoute = pathname === "/404" || pathname === "/502";
 
   const showFooter =
     !NO_FOOTER_ROUTES.includes(pathname) &&
     !pathname.startsWith("/scholarships/") &&
-    !isAdminRoute;
+    !isAdminRoute &&
+    !isErrorRoute;
 
   return (
     <div className="min-h-screen bg-background">
-      {!isAuthRoute && !isAdminRoute && <Header />}
+      {!isAuthRoute && !isAdminRoute && !isErrorRoute && <Header />}
 
       <Routes>
         {/* Public routes */}
@@ -76,11 +80,14 @@ function AppLayout() {
         <Route path="/scholarships/:id" element={<ScholarshipDetails />} />
         <Route path="/terms" element={<TermsOfService />} />
         <Route path="/privacy" element={<PrivacyPolicy />} />
+        <Route path="/404" element={<NotFoundPage />} />
+        <Route path="/502" element={<BadGatewayPage />} />
 
         {/* Auth routes */}
         <Route path="/signin" element={<SignIn />} />
         <Route path="/signup" element={<SignUp />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
 
         {/* Protected routes */}
         <Route
@@ -115,6 +122,8 @@ function AppLayout() {
             </ProtectedRoute>
           }
         />
+
+        <Route path="*" element={<NotFoundPage />} />
       </Routes>
 
       {showFooter && <Footer />}

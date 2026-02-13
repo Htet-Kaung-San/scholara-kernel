@@ -6,6 +6,7 @@ import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 import { ArrowLeft, Calendar, Globe, DollarSign, Users } from "lucide-react";
+import { ImageWithFallback } from "./figma/ImageWithFallback";
 import { api } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -13,6 +14,7 @@ interface Scholarship {
   id: string;
   title: string;
   provider: string;
+  imageUrl?: string | null;
   country: string;
   type: string;
   level: string;
@@ -35,6 +37,29 @@ interface Scholarship {
   _count?: { applications: number };
 }
 
+function parseImageUrls(value?: string | null) {
+  const raw = (value ?? "").trim();
+  if (!raw) return [];
+
+  try {
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) {
+      return parsed.map((item) => String(item || "").trim()).filter(Boolean);
+    }
+  } catch {
+    // Keep compatibility with legacy single-string URL data.
+  }
+
+  if (raw.includes(",")) {
+    return raw
+      .split(",")
+      .map((item) => item.trim())
+      .filter(Boolean);
+  }
+
+  return [raw];
+}
+
 function stringifyRichContent(value: unknown): string | null {
   if (value === null || value === undefined) return null;
   if (typeof value === "string") return value;
@@ -54,6 +79,7 @@ export function ScholarshipDetails() {
   const [isLoading, setIsLoading] = useState(true);
   const [isApplying, setIsApplying] = useState(false);
   const [activeTab, setActiveTab] = useState("overview");
+  const [selectedImageIndex, setSelectedImageIndex] = useState(0);
 
   useEffect(() => {
     if (id) fetchScholarship();
@@ -64,6 +90,7 @@ export function ScholarshipDetails() {
     try {
       const res = await api.get<Scholarship>(`/scholarships/${id}`);
       setScholarship(res.data || null);
+      setSelectedImageIndex(0);
     } catch {
       toast.error("Scholarship not found");
       navigate("/scholarships");
@@ -117,6 +144,8 @@ export function ScholarshipDetails() {
   }
 
   if (!scholarship) return null;
+  const imageUrls = parseImageUrls(scholarship.imageUrl);
+  const selectedImageUrl = imageUrls[selectedImageIndex] || imageUrls[0] || "";
 
   return (
     <div className="min-h-screen bg-background">
@@ -169,6 +198,43 @@ export function ScholarshipDetails() {
               >
                 {isApplying ? "Submitting..." : scholarship.status === "OPEN" ? "Apply Now" : "Applications Closed"}
               </Button>
+            </div>
+            <div className="lg:w-1/3">
+              <div className="overflow-hidden rounded-lg border border-border bg-muted/20">
+                {selectedImageUrl ? (
+                  <ImageWithFallback
+                    src={selectedImageUrl}
+                    alt={scholarship.title}
+                    className="h-64 w-full object-cover"
+                  />
+                ) : (
+                  <div className="flex h-64 items-center justify-center text-sm text-muted-foreground">
+                    No scholarship photo
+                  </div>
+                )}
+              </div>
+              {imageUrls.length > 1 ? (
+                <div className="mt-3 grid grid-cols-4 gap-2">
+                  {imageUrls.map((url, index) => (
+                    <button
+                      key={`${url}-${index}`}
+                      type="button"
+                      onClick={() => setSelectedImageIndex(index)}
+                      className={`overflow-hidden rounded border ${
+                        selectedImageIndex === index
+                          ? "border-black"
+                          : "border-border"
+                      }`}
+                    >
+                      <ImageWithFallback
+                        src={url}
+                        alt={`${scholarship.title} ${index + 1}`}
+                        className="h-16 w-full object-cover"
+                      />
+                    </button>
+                  ))}
+                </div>
+              ) : null}
             </div>
           </div>
         </div>

@@ -7,6 +7,7 @@ import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Mail, ArrowLeft } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import mailReceivedVideo from "@/assets/mail-received.webm";
 
 export function ForgotPassword() {
     const [email, setEmail] = useState("");
@@ -39,7 +40,7 @@ export function ForgotPassword() {
                 <div className="flex items-center justify-center min-h-[80vh]">
                     <div className="w-full max-w-md">
                         <Card className="border-2">
-                            <CardContent className="p-8 space-y-6">
+                            <CardContent className="p-10 space-y-6">
                                 {sent ? (
                                     <div className="text-center space-y-4">
                                         <div className="w-16 h-16 mx-auto bg-primary/10 rounded-full flex items-center justify-center">
@@ -59,6 +60,16 @@ export function ForgotPassword() {
                                     </div>
                                 ) : (
                                     <>
+                                        <div className="overflow-hidden rounded-xl">
+                                            <video
+                                                src={mailReceivedVideo}
+                                                autoPlay
+                                                muted
+                                                loop
+                                                playsInline
+                                                className="h-56 w-full object-contain"
+                                            />
+                                        </div>
                                         <div className="text-center">
                                             <h2 className="text-2xl font-bold mb-2">Forgot Password?</h2>
                                             <p className="text-muted-foreground">
