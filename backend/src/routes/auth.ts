@@ -68,6 +68,30 @@ router.post(
       },
     });
 
+    // Ensure each user has one welcome notification after signup.
+    const existingWelcome = await prisma.notification.findFirst({
+      where: {
+        userId: profile.id,
+        category: "SYSTEM",
+        title: "Welcome to ScholarAid",
+      },
+      select: { id: true },
+    });
+
+    if (!existingWelcome) {
+      await prisma.notification.create({
+        data: {
+          userId: profile.id,
+          type: "SUCCESS",
+          category: "SYSTEM",
+          title: "Welcome to ScholarAid",
+          message:
+            "Your account is ready. Complete your profile and start exploring scholarships curated for your goals.",
+          metadata: { kind: "welcome" },
+        },
+      });
+    }
+
     res.status(201).json({
       success: true,
       data: {
