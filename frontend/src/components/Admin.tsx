@@ -2161,20 +2161,24 @@ export function Admin() {
                                 <Button
                                   type="button"
                                   variant="outline"
-                                  size="sm"
+                                  size="icon"
+                                  className="size-8"
+                                  aria-label="Edit scholarship"
+                                  title="Edit"
                                   onClick={() => setEditingScholarship(s)}
                                 >
-                                  <Pencil className="h-4 w-4 mr-2" />
-                                  Edit
+                                  <Pencil className="h-4 w-4" />
                                 </Button>
                                 <Button
                                   type="button"
                                   variant="destructive"
-                                  size="sm"
+                                  size="icon"
+                                  className="size-8"
+                                  aria-label="Delete scholarship"
+                                  title="Delete"
                                   onClick={() => handleDeleteScholarship(s.id)}
                                 >
-                                  <Trash2 className="h-4 w-4 mr-2" />
-                                  Delete
+                                  <Trash2 className="h-4 w-4" />
                                 </Button>
                               </div>
                             </TableCell>
