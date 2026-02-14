@@ -45,7 +45,6 @@ import {
   Mail,
   LogOut,
   ChevronLeft,
-  ChevronRight,
 } from "lucide-react";
 import { ImageWithFallback } from "./figma/ImageWithFallback";
 import { useNavigate, useLocation } from "react-router";
@@ -682,17 +681,6 @@ export function Admin() {
                 <ChevronLeft className="h-4 w-4" />
               </button>
             )}
-            {isSidebarCollapsed && (
-              <button
-                type="button"
-                onClick={() => setIsSidebarCollapsed(false)}
-                className="absolute top-4 right-2 rounded-md border border-gray-200 bg-white p-1.5 text-gray-500 hover:text-black hover:bg-gray-50"
-                aria-label="Expand sidebar"
-                title="Expand sidebar"
-              >
-                <ChevronRight className="h-4 w-4" />
-              </button>
-            )}
           </div>
         </div>
 
@@ -703,7 +691,10 @@ export function Admin() {
             return (
               <button
                 key={item.key}
-                onClick={() => navigate(item.path)}
+                onClick={() => {
+                  setIsSidebarCollapsed(false);
+                  navigate(item.path);
+                }}
                 title={item.label}
                 className={`w-full flex items-center rounded-lg text-sm font-medium transition-all duration-150 ${isSidebarCollapsed ? "justify-center px-0 py-2.5" : "gap-3 px-3 py-2.5"} ${isActive
                   ? "bg-gray-100 text-black"
