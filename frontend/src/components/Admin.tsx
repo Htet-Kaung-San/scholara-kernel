@@ -21,7 +21,6 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "./ui/dialog";
 import {
   BarChart3,
@@ -956,24 +955,16 @@ export function Admin() {
           {/* ── SCHOLARSHIPS ─────────── */}
           {activeSection === "scholarships" && (
             <div className="space-y-6">
-              <div className="flex items-center justify-between">
-                <div />
-                <Dialog
-                  open={isCreateScholarshipOpen}
-                  onOpenChange={(open) => {
-                    setIsCreateScholarshipOpen(open);
-                    if (!open) {
-                      resetCreateScholarshipFormState();
-                    }
-                  }}
-                >
-                  <DialogTrigger asChild>
-                    <Button>
-                      <Plus className="h-4 w-4 mr-2" />
-                      Add Scholarship
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent className="max-w-2xl">
+              <Dialog
+                open={isCreateScholarshipOpen}
+                onOpenChange={(open) => {
+                  setIsCreateScholarshipOpen(open);
+                  if (!open) {
+                    resetCreateScholarshipFormState();
+                  }
+                }}
+              >
+                <DialogContent className="max-w-2xl">
                     <DialogHeader>
                       <DialogTitle>Create New Scholarship</DialogTitle>
                       <DialogDescription>
@@ -2001,10 +1992,8 @@ export function Admin() {
                         </div>
                       </form>
                     )}
-                  </DialogContent>
-                </Dialog>
-
-              </div>
+                </DialogContent>
+              </Dialog>
 
               <div className="flex flex-col xl:flex-row gap-3">
                 <div className="relative flex-1">
@@ -2196,6 +2185,16 @@ export function Admin() {
                   </CardContent>
                 </Card>
               )}
+
+              <div className="w-full">
+                <Button
+                  onClick={() => setIsCreateScholarshipOpen(true)}
+                  className="w-full"
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Scholarship
+                </Button>
+              </div>
             </div>
           )}
 
